@@ -81,8 +81,16 @@ tftp_frame::create_error_frame(const tftp_frame::error_code &e_code,
   return self;
 }
 
+tftp_frame_s
+tftp_frame::create_empty_frame() {
+  return tftp_frame::get_base_frame();
+}
+
 void
 tftp_frame::parse_frame() {
+  if (this->frame.size() < 4){
+    throw tftp_framing_exception("Can't parse frame with length smaller than 4");
+  }
   auto itr = this->frame.cbegin();
   if (*itr != 0x00) {
     throw tftp_invalid_frame_parameter_exception("Invalid OP code");
@@ -149,7 +157,7 @@ uint16_t tftp_frame::get_block_number() {
 // PRIVATE data members
 
 tftp_frame_s tftp_frame::get_base_frame(tftp_frame::op_code code) {
-  tftp_frame_s self(new tftp_frame()); //= std::make_shared<tftp_frame>();
+  tftp_frame_s self(new tftp_frame()); //can't use std::make_shared<tftp_frame>();
   if (code == op_invalid) {
     return self;
   }
