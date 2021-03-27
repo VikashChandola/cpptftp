@@ -101,6 +101,7 @@ tftp_frame::parse_frame() {
   }
   itr++;
   this->code = static_cast<op_code>(*itr);
+  itr++;
   switch (this->code) {
   case op_read_request: {
     throw tftp_missing_feature_exception("Feature Not implemented");
