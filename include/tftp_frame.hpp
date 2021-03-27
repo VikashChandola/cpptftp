@@ -1,32 +1,30 @@
 #ifndef __TFTP_FRAME_HPP__
 #define __TFTP_FRAME_HPP__
 
+#include <cstdint>
 #include <exception>
 #include <map>
 #include <memory>
-#include <vector>
 #include <set>
-#include <cstdint>
+#include <vector>
 
 #include <boost/asio/buffer.hpp>
 
 #include "tftp_exception.hpp"
 
-/* This module is responsible for managing tftp frames. New tftp_frame is meant to be created for each tftp
- * transaction
- * Usage Instructions
- * create_.*_frame methods should be used for creating frame of specific kind. User can then get underlying buffer
- * using get_asio_buffer() method for transmitting data.
+/* This module is responsible for managing tftp frames. New tftp_frame is meant
+ * to be created for each tftp transaction Usage Instructions create_.*_frame
+ * methods should be used for creating frame of specific kind. User can then get
+ * underlying buffer using get_asio_buffer() method for transmitting data.
  * Example
  * tftp_frame_s f = create_read_request_frame("my_file")
  * async_send_data(f->get_asio_buffer(), cb);
  *
- * One exception to above is create_empty_frame method. This method is used for creating an empty frame. This
- * method creates an empty frame which can be used for reception. Once data is received user should call 
- * parse_frame method. This parses frame and readies object for further usage
- * Example
- * tftp_frame_s f = create_empty_frame();
- * async_recv_data(f->get_asio_buffer(), cb);
+ * One exception to above is create_empty_frame method. This method is used for
+ * creating an empty frame. This method creates an empty frame which can be used
+ * for reception. Once data is received user should call parse_frame method.
+ * This parses frame and readies object for further usage Example tftp_frame_s f
+ * = create_empty_frame(); async_recv_data(f->get_asio_buffer(), cb);
  * ...
  * void cb(...){
  *   f->parse_frame();
@@ -39,7 +37,6 @@ class tftp_frame;
 typedef std::shared_ptr<tftp_frame> tftp_frame_s;
 class tftp_frame {
 public:
-
   enum op_code {
     op_read_request = 0x01,
     op_write_request,
@@ -67,8 +64,9 @@ public:
 
   static const std::size_t max_data_len = TFTP_FRAME_MAX_DATA_LEN;
 
-  static tftp_frame_s create_read_request_frame(const std::string &file_name,
-                                                const data_mode mode = mode_octet);
+  static tftp_frame_s
+  create_read_request_frame(const std::string &file_name,
+                            const data_mode mode = mode_octet);
 
   static tftp_frame_s
   create_write_request_frame(const std::string &file_name,
@@ -91,9 +89,10 @@ public:
 
   const std::vector<char> &get_frame_as_vector() { return this->frame; }
 
-  boost::asio::mutable_buffer& get_asio_buffer();
+  boost::asio::mutable_buffer &get_asio_buffer();
 
-  std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator>
+  std::pair<std::vector<char>::const_iterator,
+            std::vector<char>::const_iterator>
   get_data_iterator();
 
   op_code get_op_code() { return this->code; }
@@ -117,8 +116,7 @@ private:
 
   void append_to_frame(const char &&data);
 
-  template<typename T>
-  void append_to_frame(T itr, const T &itr_end);
+  template <typename T> void append_to_frame(T itr, const T &itr_end);
 
   std::vector<char> frame;
   op_code code;

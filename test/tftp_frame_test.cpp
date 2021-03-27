@@ -60,8 +60,9 @@ static TEST_RESULT validate_read_write_frame(tftp_frame_s frame, const std::stri
       itr++;
     }
     ASSERT(mode_itr == mode_string.cend(), "Invalid mode");
+    ASSERT(*itr == 0x00, "Invalid closure");
+    itr++;
     ASSERT(itr == frame_vector.cend(), "Too long frame");
-    ASSERT(*itr == 0x00, "Invalid separator");
   }
   return TEST_PASS;
 }

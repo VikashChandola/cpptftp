@@ -33,6 +33,7 @@ tftp_frame::create_read_request_frame(const std::string &file_name,
   self->append_to_frame(0x00);
   self->append_to_frame(mode);
   self->mode = mode;
+  self->append_to_frame(0x00);
   return self;
 }
 
@@ -78,12 +79,15 @@ tftp_frame::create_error_frame(const tftp_frame::error_code &e_code,
   self->e_code = e_code;
   self->append_to_frame(error_message);
   self->error_message = error_message;
+  self->append_to_frame(0x00);
   return self;
 }
 
 tftp_frame_s
 tftp_frame::create_empty_frame() {
-  return tftp_frame::get_base_frame();
+  auto empty_frame = tftp_frame::get_base_frame();
+  empty_frame->frame.resize(516);
+  return empty_frame;
 }
 
 void
