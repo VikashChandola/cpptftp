@@ -9,6 +9,9 @@ class tftp_exception : public std::exception {
 public:
   tftp_exception (const std::string &err_message) : std::exception(), message(err_message) {
   }
+  virtual const char* what() const throw() {
+    return this->message.c_str();
+  }
 protected:
   const std::string message;
 };
