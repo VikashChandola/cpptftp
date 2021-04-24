@@ -13,20 +13,29 @@
 #include "tftp_exception.hpp"
 
 /* This module is responsible for managing tftp frames. New tftp_frame is meant
- * to be created for each tftp transaction Usage Instructions create_.*_frame
- * methods should be used for creating frame of specific kind. User can then get
- * underlying buffer using get_asio_buffer() method for transmitting data.
+ * to be created for each tftp transaction. tftpframe module can be used for
+ * parsing packets received as well as creating new tftp frames.
+ *
+ * Usage Instructions for creating frames. This is typically used for
+ * creating a frame and transmitting to remote end
+ * create_.*_frame methods should be used for creating frame of specific kind.
+ * User can then get underlying buffer using get_asio_buffer() method for
+ * transmitting data.
  * Example
  * tftp_frame_s f = create_read_request_frame("my_file")
  * async_send_data(f->get_asio_buffer(), cb);
  *
- * One exception to above is create_empty_frame method. This method is used for
- * creating an empty frame. This method creates an empty frame which can be used
- * for reception. Once data is received user should call parse_frame method.
- * This parses frame and readies object for further usage Example tftp_frame_s f
- * = create_empty_frame(); async_recv_data(f->get_asio_buffer(), cb);
+ * Usage instruction for parsing frames. This is typically used for parsing
+ * received frames.
+ * create_empty_frame method creates an empty frame which can be used
+ * for reception of data from remote end. Once data is received user must
+ * request frame to resize to number of bytes received and then call
+ * parse_frame method
+ * f = create_empty_frame();
+ * async_recv_data(f->get_asio_buffer(), cb);
  * ...
- * void cb(...){
+ * void cb(bytes_received, ...){
+ *   f->resize(bytes_received);
  *   f->parse_frame();
  *   //object f is usable now.
  * }
