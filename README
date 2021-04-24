@@ -1,0 +1,4 @@
+Dependencies outside minimal libc ecosystem
+1. boost::asio : For asyncronous IO
+2. nlohmann-json :For client application configuration parsing
+
