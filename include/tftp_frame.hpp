@@ -101,6 +101,8 @@ public:
 
   uint16_t get_block_number();
 
+  void resize(std::size_t new_size) { this->frame.resize(new_size); }
+
 private:
   tftp_frame() : code(op_invalid) {}
 
