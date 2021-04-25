@@ -115,3 +115,111 @@ void client_downloader::update_stage(const boost::system::error_code &error,
   }
   }
 }
+
+//-----------------------------------------------------------------------------
+
+client_uploader::client_uploader(boost::asio::io_context &io,
+                                 const std::string &file_name,
+                                 const udp::endpoint &remote_endpoint,
+                                 std::unique_ptr<std::istream> u_in_stream,
+                                 client_completion_callback upload_callback)
+    : io(io), socket(io), remote_tid(remote_endpoint), file_name(file_name),
+      u_in(std::move(u_in_stream)), callback(upload_callback), block_number(0) {
+  socket.open(udp::v4());
+  stage = init;
+}
+
+void client_uploader::sender(const boost::system::error_code &error,
+                             const std::size_t bytes_received) {
+  this->update_stage(error, bytes_received);
+  std::cout << __PRETTY_FUNCTION__ << "[" << __LINE__
+            << "] stage :" << this->stage << std::endl;
+  switch (this->stage) {
+  case client_uploader::upload_request: {
+    this->frame = tftp_frame::create_write_request_frame(this->file_name);
+    this->socket.async_send_to(
+        this->frame->get_asio_buffer(), this->remote_tid,
+        std::bind(&client_uploader::receiver, shared_from_this(),
+                  std::placeholders::_1, std::placeholders::_2));
+    break;
+  }
+  case client_uploader::upload_data: {
+    char data_array[512] = {0};
+    u_in->read(data_array, 512);
+    // std::vector<char> data_vector(data_array);
+    std::vector<char> data_vector;
+    for (int i = 0; i < u_in->gcount(); i++) {
+      data_vector.push_back(data_array[i]);
+    }
+    if (u_in->eof()) {
+      this->is_last_block = true;
+    }
+    this->frame = tftp_frame::create_data_frame(
+        data_vector.cbegin(), data_vector.cend(), this->block_number);
+    this->socket.async_send_to(
+        this->frame->get_asio_buffer(), this->remote_tid,
+        std::bind(&client_uploader::receiver, shared_from_this(),
+                  std::placeholders::_1, std::placeholders::_2));
+    break;
+  }
+  default:
+    break;
+  }
+}
+
+void client_uploader::receiver(const boost::system::error_code &error,
+                               const std::size_t bytes_sent) {
+  this->update_stage(error, bytes_sent);
+  std::cout << __PRETTY_FUNCTION__ << "[" << __LINE__
+            << "] stage :" << this->stage << std::endl;
+  switch (this->stage) {
+  case client_uploader::wait_ack: {
+    this->frame = tftp_frame::create_empty_frame();
+    this->socket.async_receive_from(
+        this->frame->get_asio_buffer(), this->remote_tid,
+        std::bind(&client_uploader::sender, shared_from_this(),
+                  std::placeholders::_1, std::placeholders::_2));
+    break;
+  }
+  case client_uploader::exit: {
+    this->callback(this->exec_error);
+  }
+  default: {
+    break;
+  }
+  }
+}
+
+void client_uploader::update_stage(const boost::system::error_code &error,
+                                   const std::size_t bytes_transacted) {
+  // TODO: Add necessary changes for errornous case
+  switch (this->stage) {
+  case client_uploader::init: {
+    this->stage = client_uploader::upload_request;
+    break;
+  }
+  case client_uploader::upload_request: {
+    this->stage = client_uploader::wait_ack;
+    break;
+  }
+  case client_uploader::wait_ack: {
+    this->block_number++;
+    if (this->is_last_block) {
+      this->stage = client_uploader::exit;
+    } else {
+      this->stage = client_uploader::upload_data;
+    }
+    break;
+  }
+  case client_uploader::upload_data: {
+    this->stage = client_uploader::wait_ack;
+    break;
+  }
+  case client_uploader::exit:
+  default: {
+    break;
+  }
+  }
+}
+
+//-----------------------------------------------------------------------------

@@ -28,10 +28,11 @@ int main(int argc, char **argv) {
   socket.async_send_to(boost::asio::buffer(send_buf), remote_endpoint, cb);*/
 
   tftp::client_s tftp_client = tftp::client::create(io, remote_endpoint);
-  tftp_client->download_file("0001_file", "0001_file", cb);
-  tftp_client->download_file("0010_file", "0010_file", cb);
-  tftp_client->download_file("0100_file", "0100_file", cb);
-  tftp_client->download_file("1000_file", "1000_file", cb);
+  // tftp_client->download_file("0001_file", "0001_file", cb);
+  // tftp_client->download_file("0010_file", "0010_file", cb);
+  // tftp_client->download_file("0100_file", "0100_file", cb);
+  // tftp_client->download_file("1000_file", "1000_file", cb);
+  tftp_client->upload_file("simple_client", "simple_client", cb);
   io.run();
   return 0;
 }
