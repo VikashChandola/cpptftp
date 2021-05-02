@@ -7,8 +7,7 @@
 
 class invalid_config_exception : public std::exception {
 public:
-  invalid_config_exception(const std::string &err_message)
-      : std::exception(), message(err_message) {}
+  invalid_config_exception(const std::string &err_message) : std::exception(), message(err_message) {}
   virtual const char *what() const throw() { return this->message.c_str(); }
 
 protected:
@@ -23,15 +22,13 @@ void completion_callback(tftp::error_code status) {
 
 class execute_conf {
 public:
-  execute_conf(conf_s c, boost::asio::io_context &io)
-      : configuration(c), io(io), running_jobs(0) {
+  execute_conf(conf_s c, boost::asio::io_context &io) : configuration(c), io(io), running_jobs(0) {
     udp::resolver resolver(io);
     for (client_conf client : this->configuration->client_list) {
       std::cout << "Endpoint :" << client.endpoint << std::endl;
       std::string::size_type separator = client.endpoint.find(":");
       if (separator == std::string::npos) {
-        throw invalid_config_exception(std::string("Invalid hostname :") +
-                                       client.endpoint);
+        throw invalid_config_exception(std::string("Invalid hostname :") + client.endpoint);
       }
       std::string ip = client.endpoint.substr(0, separator);
       std::string port = client.endpoint.substr(separator + 1);
@@ -39,20 +36,16 @@ public:
       try {
         remote_endpoint = *resolver.resolve(udp::v4(), ip, port).begin();
       } catch (...) {
-        throw invalid_config_exception(
-            std::string("Failed to resolve remote host :") + client.endpoint);
+        throw invalid_config_exception(std::string("Failed to resolve remote host :") + client.endpoint);
       }
-      tftp::client_s tftp_client =
-          tftp::client::create(this->io, remote_endpoint);
+      tftp::client_s tftp_client = tftp::client::create(this->io, remote_endpoint);
       std::cout << "Download :" << std::endl;
       std::cout << std::string(40, '-') << std::endl;
       for (job j : client.download_job_list) {
         this->running_jobs++;
-        tftp_client->download_file(
-            j.remote_file, j.local_file,
-            std::bind(&execute_conf::cb, this, std::placeholders::_1,
-                      std::string("client [" + j.local_file + " <- " +
-                                  j.remote_file + "]")));
+        tftp_client->download_file(j.remote_file, j.local_file,
+                                   std::bind(&execute_conf::cb, this, std::placeholders::_1,
+                                             std::string("client [" + j.local_file + " <- " + j.remote_file + "]")));
         std::cout << "\tlocal file  :" << j.local_file << std::endl;
         std::cout << "\tremote file :" << j.remote_file << std::endl;
         std::cout << "\t" << std::string(32, '-') << std::endl;

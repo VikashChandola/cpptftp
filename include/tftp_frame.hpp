@@ -72,22 +72,17 @@ public:
 
   static const std::size_t max_data_len = TFTP_FRAME_MAX_DATA_LEN;
 
-  static frame_s create_read_request_frame(const std::string &file_name,
-                                           const data_mode mode = mode_octet);
+  static frame_s create_read_request_frame(const std::string &file_name, const data_mode mode = mode_octet);
 
-  static frame_s create_write_request_frame(const std::string &file_name,
-                                            const data_mode mode = mode_octet);
+  static frame_s create_write_request_frame(const std::string &file_name, const data_mode mode = mode_octet);
 
-  static frame_s
-  create_data_frame(std::vector<char>::const_iterator itr,
-                    const std::vector<char>::const_iterator &itr_end,
-                    const uint16_t &block_number,
-                    const std::size_t frame_size = max_data_len);
+  static frame_s create_data_frame(std::vector<char>::const_iterator itr,
+                                   const std::vector<char>::const_iterator &itr_end, const uint16_t &block_number,
+                                   const std::size_t frame_size = max_data_len);
 
   static frame_s create_ack_frame(const uint16_t &block_number);
 
-  static frame_s create_error_frame(const error_code &e_code,
-                                    const std::string &error_message = "");
+  static frame_s create_error_frame(const error_code &e_code, const std::string &error_message = "");
 
   static frame_s create_empty_frame();
 
@@ -97,9 +92,7 @@ public:
 
   boost::asio::mutable_buffer &get_asio_buffer();
 
-  std::pair<std::vector<char>::const_iterator,
-            std::vector<char>::const_iterator>
-  get_data_iterator();
+  std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> get_data_iterator();
 
   op_code get_op_code() { return this->code; }
 

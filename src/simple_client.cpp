@@ -7,9 +7,7 @@
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
 
-void recv_cb(boost::system::error_code e, std::size_t bytes_transferred) {
-  std::cout << "Done" << std::endl;
-}
+void recv_cb(boost::system::error_code e, std::size_t bytes_transferred) { std::cout << "Done" << std::endl; }
 
 void cb(tftp::error_code e) { std::cout << "Done" << std::endl; }
 

@@ -15,8 +15,7 @@ static std::map<frame::data_mode, std::string> data_mode_map{
 };
 
 static std::map<frame::error_code, std::string> error_code_map{
-    {frame::undefined_error,
-     "Undefined. Please check error message(if any)"},
+    {frame::undefined_error, "Undefined. Please check error message(if any)"},
     {frame::file_not_found, "File not found"},
     {frame::access_violation, "Access violation"},
     {frame::disk_full, "Disk full or allocation exceeded"},
@@ -26,9 +25,7 @@ static std::map<frame::error_code, std::string> error_code_map{
     {frame::no_such_user, "No such user."},
 };
 
-frame_s
-frame::create_read_request_frame(const std::string &file_name,
-                                      const frame::data_mode mode) {
+frame_s frame::create_read_request_frame(const std::string &file_name, const frame::data_mode mode) {
   frame_s self = frame::get_base_frame(frame::op_read_request);
   self->code = frame::op_read_request;
   self->append_to_frame(file_name);
@@ -40,20 +37,16 @@ frame::create_read_request_frame(const std::string &file_name,
   return self;
 }
 
-frame_s
-frame::create_write_request_frame(const std::string &file_name,
-                                       const frame::data_mode mode) {
+frame_s frame::create_write_request_frame(const std::string &file_name, const frame::data_mode mode) {
   frame_s self = create_read_request_frame(file_name, mode);
   self->data[1] = frame::op_write_request;
   self->code = frame::op_write_request;
   return self;
 }
 
-frame_s
-frame::create_data_frame(std::vector<char>::const_iterator itr,
-                              const std::vector<char>::const_iterator &itr_end,
-                              const uint16_t &block_number,
-                              const std::size_t frame_size) {
+frame_s frame::create_data_frame(std::vector<char>::const_iterator itr,
+                                 const std::vector<char>::const_iterator &itr_end, const uint16_t &block_number,
+                                 const std::size_t frame_size) {
   if (frame_size > 512) {
     throw tftp_framing_exception("Frame data larger than 512 byes");
   }
@@ -73,9 +66,7 @@ frame_s frame::create_ack_frame(const uint16_t &block_number) {
   return self;
 }
 
-frame_s
-frame::create_error_frame(const frame::error_code &e_code,
-                               const std::string &error_message) {
+frame_s frame::create_error_frame(const frame::error_code &e_code, const std::string &error_message) {
   frame_s self = frame::get_base_frame(op_error);
   self->code = op_error;
   self->append_to_frame(e_code);
@@ -94,8 +85,7 @@ frame_s frame::create_empty_frame() {
 
 void frame::parse_frame() {
   if (this->data.size() < 4) {
-    throw tftp_framing_exception(
-        "Can't parse frame with length smaller than 4");
+    throw tftp_framing_exception("Can't parse frame with length smaller than 4");
   }
   auto itr = this->data.cbegin();
   if (*itr != 0x00) {
@@ -115,8 +105,7 @@ void frame::parse_frame() {
     if (itr + 2 > this->data.cend()) {
       throw tftp_partial_frame_exception("No block number in packet");
     }
-    this->block_number = (static_cast<uint16_t>(*itr) << 8) +
-                         (static_cast<uint16_t>(*(itr + 1)));
+    this->block_number = (static_cast<uint16_t>(*itr) << 8) + (static_cast<uint16_t>(*(itr + 1)));
   } break;
   case op_ack: {
     throw tftp_missing_feature_exception("op ack feature not implemented");
@@ -135,8 +124,7 @@ boost::asio::mutable_buffer &frame::get_asio_buffer() {
   return this->buffer;
 }
 
-std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator>
-frame::get_data_iterator() {
+std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> frame::get_data_iterator() {
   if (this->code != op_data) {
     throw tftp_framing_exception("Not a data frame");
   }
@@ -147,28 +135,24 @@ frame::get_data_iterator() {
 }
 
 frame::data_mode frame::get_data_mode() {
-  if (this->code == op_data || this->code == op_read_request ||
-      this->code == op_write_request) {
+  if (this->code == op_data || this->code == op_read_request || this->code == op_write_request) {
     return this->mode;
   }
-  throw tftp_invalid_frame_parameter_exception(
-      "Mode can't be provided. Not a data, read request or write request "
-      "frame");
+  throw tftp_invalid_frame_parameter_exception("Mode can't be provided. Not a data, read request or write request "
+                                               "frame");
 }
 
 uint16_t frame::get_block_number() {
   if (this->code == op_data || this->code == op_ack) {
     return this->block_number;
   }
-  throw tftp_invalid_frame_parameter_exception(
-      "block number can't be provided. Not a data or ack frame");
+  throw tftp_invalid_frame_parameter_exception("block number can't be provided. Not a data or ack frame");
 }
 
 // PRIVATE data members
 
 frame_s frame::get_base_frame(frame::op_code code) {
-  frame_s self(
-      new frame()); // can't use std::make_shared<frame>();
+  frame_s self(new frame()); // can't use std::make_shared<frame>();
   if (code == op_invalid) {
     return self;
   }
@@ -178,29 +162,20 @@ frame_s frame::get_base_frame(frame::op_code code) {
   return self;
 }
 
-void frame::append_to_frame(const frame::data_mode &d_mode) {
-  this->append_to_frame(data_mode_map[d_mode]);
-}
+void frame::append_to_frame(const frame::data_mode &d_mode) { this->append_to_frame(data_mode_map[d_mode]); }
 
-void frame::append_to_frame(const frame::error_code &e_code) {
-  this->append_to_frame(error_code_map[e_code]);
-}
+void frame::append_to_frame(const frame::error_code &e_code) { this->append_to_frame(error_code_map[e_code]); }
 
-void frame::append_to_frame(const std::string &data) {
-  this->append_to_frame(data.cbegin(), data.cend());
-}
+void frame::append_to_frame(const std::string &data) { this->append_to_frame(data.cbegin(), data.cend()); }
 
 void frame::append_to_frame(const uint16_t &data) {
   this->data.push_back(static_cast<char>(data >> 8));
   this->data.push_back(static_cast<char>(data));
 }
 
-void frame::append_to_frame(const char &&data) {
-  this->data.push_back(static_cast<char>(data));
-}
+void frame::append_to_frame(const char &&data) { this->data.push_back(static_cast<char>(data)); }
 
-template <typename T>
-void frame::append_to_frame(T itr, const T &itr_end) {
+template <typename T> void frame::append_to_frame(T itr, const T &itr_end) {
   while (itr != itr_end) {
     this->data.push_back(*itr);
     itr++;

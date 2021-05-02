@@ -1,7 +1,7 @@
 #ifndef __CLINET_HPP__
 #define __CLINET_HPP__
-#include <nlohmann/json.hpp>
 #include <fstream>
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 class conf;
