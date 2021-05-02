@@ -7,28 +7,30 @@
 #include "tftp_exception.hpp"
 #include "tftp_frame.hpp"
 
-static std::map<tftp_frame::data_mode, std::string> data_mode_map{
-    {tftp_frame::mode_octet, "octet"},
-    {tftp_frame::mode_netascii, "netascii"},
+using namespace tftp;
+
+static std::map<frame::data_mode, std::string> data_mode_map{
+    {frame::mode_octet, "octet"},
+    //{frame::mode_netascii, "netascii"},
 };
 
-static std::map<tftp_frame::error_code, std::string> error_code_map{
-    {tftp_frame::undefined_error,
+static std::map<frame::error_code, std::string> error_code_map{
+    {frame::undefined_error,
      "Undefined. Please check error message(if any)"},
-    {tftp_frame::file_not_found, "File not found"},
-    {tftp_frame::access_violation, "Access violation"},
-    {tftp_frame::disk_full, "Disk full or allocation exceeded"},
-    {tftp_frame::illegal_tftp_operation, "Illegal TFTP operation."},
-    {tftp_frame::unknown_transfer_id, "Unknown transfer ID."},
-    {tftp_frame::file_exists, "File already exists."},
-    {tftp_frame::no_such_user, "No such user."},
+    {frame::file_not_found, "File not found"},
+    {frame::access_violation, "Access violation"},
+    {frame::disk_full, "Disk full or allocation exceeded"},
+    {frame::illegal_tftp_operation, "Illegal TFTP operation."},
+    {frame::unknown_transfer_id, "Unknown transfer ID."},
+    {frame::file_exists, "File already exists."},
+    {frame::no_such_user, "No such user."},
 };
 
-tftp_frame_s
-tftp_frame::create_read_request_frame(const std::string &file_name,
-                                      const tftp_frame::data_mode mode) {
-  tftp_frame_s self = tftp_frame::get_base_frame(tftp_frame::op_read_request);
-  self->code = tftp_frame::op_read_request;
+frame_s
+frame::create_read_request_frame(const std::string &file_name,
+                                      const frame::data_mode mode) {
+  frame_s self = frame::get_base_frame(frame::op_read_request);
+  self->code = frame::op_read_request;
   self->append_to_frame(file_name);
   self->file_name = file_name;
   self->append_to_frame(0x00);
@@ -38,43 +40,43 @@ tftp_frame::create_read_request_frame(const std::string &file_name,
   return self;
 }
 
-tftp_frame_s
-tftp_frame::create_write_request_frame(const std::string &file_name,
-                                       const tftp_frame::data_mode mode) {
-  tftp_frame_s self = create_read_request_frame(file_name, mode);
-  self->frame[1] = tftp_frame::op_write_request;
-  self->code = tftp_frame::op_write_request;
+frame_s
+frame::create_write_request_frame(const std::string &file_name,
+                                       const frame::data_mode mode) {
+  frame_s self = create_read_request_frame(file_name, mode);
+  self->data[1] = frame::op_write_request;
+  self->code = frame::op_write_request;
   return self;
 }
 
-tftp_frame_s
-tftp_frame::create_data_frame(std::vector<char>::const_iterator itr,
+frame_s
+frame::create_data_frame(std::vector<char>::const_iterator itr,
                               const std::vector<char>::const_iterator &itr_end,
                               const uint16_t &block_number,
                               const std::size_t frame_size) {
   if (frame_size > 512) {
     throw tftp_framing_exception("Frame data larger than 512 byes");
   }
-  tftp_frame_s self = tftp_frame::get_base_frame(tftp_frame::op_data);
-  self->code = tftp_frame::op_data;
+  frame_s self = frame::get_base_frame(frame::op_data);
+  self->code = frame::op_data;
   self->append_to_frame(block_number);
   self->block_number = block_number;
   self->append_to_frame(itr, std::min(itr_end, itr + frame_size));
   return self;
 }
 
-tftp_frame_s tftp_frame::create_ack_frame(const uint16_t &block_number) {
-  tftp_frame_s self = tftp_frame::get_base_frame(op_ack);
+frame_s frame::create_ack_frame(const uint16_t &block_number) {
+  frame_s self = frame::get_base_frame(op_ack);
   self->code = op_ack;
   self->append_to_frame(block_number);
   self->block_number = block_number;
   return self;
 }
 
-tftp_frame_s
-tftp_frame::create_error_frame(const tftp_frame::error_code &e_code,
+frame_s
+frame::create_error_frame(const frame::error_code &e_code,
                                const std::string &error_message) {
-  tftp_frame_s self = tftp_frame::get_base_frame(op_error);
+  frame_s self = frame::get_base_frame(op_error);
   self->code = op_error;
   self->append_to_frame(e_code);
   self->e_code = e_code;
@@ -84,18 +86,18 @@ tftp_frame::create_error_frame(const tftp_frame::error_code &e_code,
   return self;
 }
 
-tftp_frame_s tftp_frame::create_empty_frame() {
-  auto empty_frame = tftp_frame::get_base_frame();
-  empty_frame->frame.resize(516);
+frame_s frame::create_empty_frame() {
+  auto empty_frame = frame::get_base_frame();
+  empty_frame->data.resize(516);
   return empty_frame;
 }
 
-void tftp_frame::parse_frame() {
-  if (this->frame.size() < 4) {
+void frame::parse_frame() {
+  if (this->data.size() < 4) {
     throw tftp_framing_exception(
         "Can't parse frame with length smaller than 4");
   }
-  auto itr = this->frame.cbegin();
+  auto itr = this->data.cbegin();
   if (*itr != 0x00) {
     throw tftp_invalid_frame_parameter_exception("Invalid OP code");
   }
@@ -110,7 +112,7 @@ void tftp_frame::parse_frame() {
     throw tftp_missing_feature_exception("Feature Not implemented");
   } break;
   case op_data: {
-    if (itr + 2 > this->frame.cend()) {
+    if (itr + 2 > this->data.cend()) {
       throw tftp_partial_frame_exception("No block number in packet");
     }
     this->block_number = (static_cast<uint16_t>(*itr) << 8) +
@@ -128,23 +130,23 @@ void tftp_frame::parse_frame() {
   }
 }
 
-boost::asio::mutable_buffer &tftp_frame::get_asio_buffer() {
-  this->buffer = boost::asio::buffer(this->frame);
+boost::asio::mutable_buffer &frame::get_asio_buffer() {
+  this->buffer = boost::asio::buffer(this->data);
   return this->buffer;
 }
 
 std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator>
-tftp_frame::get_data_iterator() {
+frame::get_data_iterator() {
   if (this->code != op_data) {
     throw tftp_framing_exception("Not a data frame");
   }
-  if (this->frame.size() < 4) {
+  if (this->data.size() < 4) {
     throw tftp_partial_frame_exception("Data frame smaller than 4 bytes");
   }
-  return std::make_pair(this->frame.cbegin() + 4, this->frame.cend());
+  return std::make_pair(this->data.cbegin() + 4, this->data.cend());
 }
 
-tftp_frame::data_mode tftp_frame::get_data_mode() {
+frame::data_mode frame::get_data_mode() {
   if (this->code == op_data || this->code == op_read_request ||
       this->code == op_write_request) {
     return this->mode;
@@ -154,7 +156,7 @@ tftp_frame::data_mode tftp_frame::get_data_mode() {
       "frame");
 }
 
-uint16_t tftp_frame::get_block_number() {
+uint16_t frame::get_block_number() {
   if (this->code == op_data || this->code == op_ack) {
     return this->block_number;
   }
@@ -164,43 +166,43 @@ uint16_t tftp_frame::get_block_number() {
 
 // PRIVATE data members
 
-tftp_frame_s tftp_frame::get_base_frame(tftp_frame::op_code code) {
-  tftp_frame_s self(
-      new tftp_frame()); // can't use std::make_shared<tftp_frame>();
+frame_s frame::get_base_frame(frame::op_code code) {
+  frame_s self(
+      new frame()); // can't use std::make_shared<frame>();
   if (code == op_invalid) {
     return self;
   }
-  self->frame.push_back(0x00);
-  self->frame.push_back(code);
+  self->data.push_back(0x00);
+  self->data.push_back(code);
   self->code = code;
   return self;
 }
 
-void tftp_frame::append_to_frame(const tftp_frame::data_mode &d_mode) {
+void frame::append_to_frame(const frame::data_mode &d_mode) {
   this->append_to_frame(data_mode_map[d_mode]);
 }
 
-void tftp_frame::append_to_frame(const tftp_frame::error_code &e_code) {
+void frame::append_to_frame(const frame::error_code &e_code) {
   this->append_to_frame(error_code_map[e_code]);
 }
 
-void tftp_frame::append_to_frame(const std::string &data) {
+void frame::append_to_frame(const std::string &data) {
   this->append_to_frame(data.cbegin(), data.cend());
 }
 
-void tftp_frame::append_to_frame(const uint16_t &data) {
-  this->frame.push_back(static_cast<char>(data >> 8));
-  this->frame.push_back(static_cast<char>(data));
+void frame::append_to_frame(const uint16_t &data) {
+  this->data.push_back(static_cast<char>(data >> 8));
+  this->data.push_back(static_cast<char>(data));
 }
 
-void tftp_frame::append_to_frame(const char &&data) {
-  this->frame.push_back(static_cast<char>(data));
+void frame::append_to_frame(const char &&data) {
+  this->data.push_back(static_cast<char>(data));
 }
 
 template <typename T>
-void tftp_frame::append_to_frame(T itr, const T &itr_end) {
+void frame::append_to_frame(T itr, const T &itr_end) {
   while (itr != itr_end) {
-    this->frame.push_back(*itr);
+    this->data.push_back(*itr);
     itr++;
   }
 }

@@ -1,3 +1,6 @@
+#ifndef __TFTP_CLIENT_HPP__
+#define __TFTP_CLIENT_HPP__
+
 #include <array>
 #include <boost/asio.hpp>
 #include <cstdlib>
@@ -68,7 +71,7 @@ private:
   std::string file_name;
   std::unique_ptr<std::ostream> u_out;
   client_completion_callback callback;
-  tftp_frame_s frame;
+  frame_s frame;
   tftp::error_code exec_error;
   bool is_last_block = false;
 };
@@ -110,7 +113,7 @@ private:
   std::string file_name;
   std::unique_ptr<std::istream> u_in;
   client_completion_callback callback;
-  tftp_frame_s frame;
+  frame_s frame;
   tftp::error_code exec_error;
   uint16_t block_number;
   bool is_last_block = false;
@@ -165,3 +168,5 @@ private:
 };
 
 } // namespace tftp
+
+#endif

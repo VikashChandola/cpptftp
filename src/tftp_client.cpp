@@ -31,7 +31,7 @@ void client_downloader::sender(const boost::system::error_code &error,
   this->update_stage(error, bytes_received);
   switch (this->stage) {
   case client_downloader::request_data: {
-    this->frame = tftp_frame::create_read_request_frame(this->file_name);
+    this->frame = frame::create_read_request_frame(this->file_name);
     this->socket.async_send_to(
         this->frame->get_asio_buffer(), this->remote_tid,
         std::bind(&client_downloader::receiver, shared_from_this(),
@@ -49,7 +49,7 @@ void client_downloader::sender(const boost::system::error_code &error,
       (*this->u_out) << *itr;
       itr++;
     }
-    this->frame = tftp_frame::create_ack_frame(this->frame->get_block_number());
+    this->frame = frame::create_ack_frame(this->frame->get_block_number());
     this->socket.async_send_to(
         this->frame->get_asio_buffer(), this->remote_tid,
         std::bind(&client_downloader::receiver, shared_from_this(),
@@ -66,7 +66,7 @@ void client_downloader::receiver(const boost::system::error_code &error,
   this->update_stage(error, bytes_sent);
   switch (this->stage) {
   case client_downloader::receive_data: {
-    this->frame = tftp_frame::create_empty_frame();
+    this->frame = frame::create_empty_frame();
     this->socket.async_receive_from(
         this->frame->get_asio_buffer(), this->remote_tid,
         std::bind(&client_downloader::sender, shared_from_this(),
@@ -136,7 +136,7 @@ void client_uploader::sender(const boost::system::error_code &error,
             << "] stage :" << this->stage << std::endl;
   switch (this->stage) {
   case client_uploader::upload_request: {
-    this->frame = tftp_frame::create_write_request_frame(this->file_name);
+    this->frame = frame::create_write_request_frame(this->file_name);
     this->socket.async_send_to(
         this->frame->get_asio_buffer(), this->remote_tid,
         std::bind(&client_uploader::receiver, shared_from_this(),
@@ -154,7 +154,7 @@ void client_uploader::sender(const boost::system::error_code &error,
     if (u_in->eof()) {
       this->is_last_block = true;
     }
-    this->frame = tftp_frame::create_data_frame(
+    this->frame = frame::create_data_frame(
         data_vector.cbegin(), data_vector.cend(), this->block_number);
     this->socket.async_send_to(
         this->frame->get_asio_buffer(), this->remote_tid,
@@ -174,7 +174,7 @@ void client_uploader::receiver(const boost::system::error_code &error,
             << "] stage :" << this->stage << std::endl;
   switch (this->stage) {
   case client_uploader::wait_ack: {
-    this->frame = tftp_frame::create_empty_frame();
+    this->frame = frame::create_empty_frame();
     this->socket.async_receive_from(
         this->frame->get_asio_buffer(), this->remote_tid,
         std::bind(&client_uploader::sender, shared_from_this(),
