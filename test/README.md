@@ -6,7 +6,7 @@ Following are the list of test cases.
 - [X] tftp read request frame creation
 - [X] tftp write request frame creation
 - [X] tftp data frame creation
-- [ ] tftp ack frame creation
+- [X] tftp ack frame creation
 - [ ] tftp error frame creation
 
 - [ ] parse read request tftp frame

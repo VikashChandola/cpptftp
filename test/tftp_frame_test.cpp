@@ -124,3 +124,23 @@ BOOST_DATA_TEST_CASE(data_frame_creation, bdata::xrange(0, 600, 50), data_length
   }
   BOOST_TEST((itr == f_data.cend()), "Invalid end for data frame");
 }
+
+BOOST_DATA_TEST_CASE(ack_frame_creation, bdata::make({0, 1, 255, 1000, 65535}), block_number) {
+  tftp::frame_s f = tftp::frame::create_ack_frame(block_number);
+  const std::vector<char> &f_data = f->get_frame_as_vector();
+
+  auto itr = f_data.cbegin();
+  BOOST_TEST(*itr == 0x00, "First byte of data frame is not 0x00");
+
+  itr++;
+  BOOST_TEST(*itr == tftp::frame::op_ack, "Incorrect op code for ack frame");
+
+  itr++;
+  BOOST_TEST(f->get_block_number() == block_number, "Data frame block number mismatch");
+  BOOST_TEST(*itr == static_cast<char>(block_number >> 8), "Data frame block number mismatch");
+  itr++;
+  BOOST_TEST(*itr == static_cast<char>(block_number), "Data frame block number mismatch");
+
+  itr++;
+  BOOST_TEST((itr == f_data.cend()), "Invalid end for ack frame");
+}
