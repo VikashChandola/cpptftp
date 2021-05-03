@@ -81,7 +81,7 @@ private:
 int main(int argc, char **argv) {
   std::string conf_file;
   if (argc < 2) {
-    conf_file = std::string("../bin/config.json");
+    conf_file = std::string("bin/config.json");
     // std::cout << "Usage " << argv[0] << " <config file>" << std::endl;
     // return 1;
   } else {

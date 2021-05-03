@@ -1,5 +1,7 @@
 project('cpptftp', 'cpp', default_options : ['cpp_std=c++17'])
 
+r = run_command('cp', '-r', join_paths(meson.source_root(), 'test/bin/'), meson.build_root())
+
 cpp = meson.get_compiler('cpp')
 dep_pthread = cpp.find_library('pthread', required : true)
 
@@ -36,6 +38,5 @@ simple_client_bin = executable('simple_client', sources : simple_client_src,
 
 
 test('tftp frame library test ', tftpframe_test_exec)
-
 
 
