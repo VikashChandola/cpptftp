@@ -90,7 +90,7 @@ BOOST_DATA_TEST_CASE(read_write_request_frame_creation, bdata::make(read_write_r
   BOOST_TEST((itr == f_data.cend()), "Frame is longer than expected");
 }
 
-BOOST_DATA_TEST_CASE(data_frame_creation, bdata::xrange(0, 517, 1), data_length) {
+BOOST_DATA_TEST_CASE(data_frame_creation, bdata::xrange(0, 600, 50), data_length) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<> distrib(0, 255);
