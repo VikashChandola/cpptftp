@@ -100,6 +100,8 @@ public:
 
   uint16_t get_block_number();
 
+  error_code get_error_code();
+
   void resize(std::size_t new_size) { this->data.resize(new_size); }
 
 private:
@@ -108,8 +110,6 @@ private:
   static frame_s get_base_frame(op_code code = op_invalid);
 
   void append_to_frame(const data_mode &d_mode);
-
-  void append_to_frame(const error_code &e_code);
 
   void append_to_frame(const std::string &data);
 

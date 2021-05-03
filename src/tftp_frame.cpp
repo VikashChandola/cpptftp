@@ -26,9 +26,8 @@ static std::map<frame::error_code, std::string> error_code_map{
 };
 
 frame_s frame::create_read_request_frame(const std::string &file_name, const frame::data_mode mode) {
-  if (file_name.size() > 255 || file_name.size() < 1){
-    throw invalid_frame_parameter_exception(
-        "Read request with filename larger than 255 characters or smaller than 1");
+  if (file_name.size() > 255 || file_name.size() < 1) {
+    throw invalid_frame_parameter_exception("Read request with filename larger than 255 characters or smaller than 1");
   }
   frame_s self = frame::get_base_frame(frame::op_read_request);
   self->code = frame::op_read_request;
@@ -73,7 +72,7 @@ frame_s frame::create_ack_frame(const uint16_t &block_number) {
 frame_s frame::create_error_frame(const frame::error_code &e_code, const std::string &error_message) {
   frame_s self = frame::get_base_frame(op_error);
   self->code = op_error;
-  self->append_to_frame(e_code);
+  self->append_to_frame(static_cast<uint16_t>(e_code));
   self->e_code = e_code;
   self->append_to_frame(error_message);
   self->error_message = error_message;
@@ -143,7 +142,7 @@ frame::data_mode frame::get_data_mode() {
     return this->mode;
   }
   throw invalid_frame_parameter_exception("Mode can't be provided. Not a data, read request or write request "
-                                               "frame");
+                                          "frame");
 }
 
 uint16_t frame::get_block_number() {
@@ -151,6 +150,13 @@ uint16_t frame::get_block_number() {
     return this->block_number;
   }
   throw invalid_frame_parameter_exception("block number can't be provided. Not a data or ack frame");
+}
+
+frame::error_code frame::get_error_code() {
+  if (this->code == op_error) {
+    return this->e_code;
+  }
+  throw invalid_frame_parameter_exception("Error code can't be provided. Not a error frame");
 }
 
 // PRIVATE data members
@@ -167,8 +173,6 @@ frame_s frame::get_base_frame(frame::op_code code) {
 }
 
 void frame::append_to_frame(const frame::data_mode &d_mode) { this->append_to_frame(data_mode_map[d_mode]); }
-
-void frame::append_to_frame(const frame::error_code &e_code) { this->append_to_frame(error_code_map[e_code]); }
 
 void frame::append_to_frame(const std::string &data) { this->append_to_frame(data.cbegin(), data.cend()); }
 
