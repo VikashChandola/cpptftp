@@ -1,13 +1,14 @@
 Following are the list of test cases.
 
-- [X] Build mini test framework
+- [X] ~~Build mini test framework~~
+- [X] Use boost test as testing framework
 
 ### libtftpframe.so
 - [X] tftp read request frame creation
 - [X] tftp write request frame creation
 - [X] tftp data frame creation
 - [X] tftp ack frame creation
-- [ ] tftp error frame creation
+- [X] tftp error frame creation
 
 - [ ] parse read request tftp frame
 - [ ] parse write request tftp frame
