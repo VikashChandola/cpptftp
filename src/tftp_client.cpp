@@ -19,12 +19,15 @@ client_downloader::client_downloader(boost::asio::io_context &io, const std::str
                                      const udp::endpoint &remote_endpoint, std::unique_ptr<std::ostream> u_out_stream,
                                      client_completion_callback download_callback)
     : io(io), socket(io), remote_tid(remote_endpoint), file_name(file_name), u_out(std::move(u_out_stream)),
-      callback(download_callback) {
+      callback(download_callback), timer(io), timeout(boost::asio::chrono::microseconds(1000000)) {
   socket.open(udp::v4());
   stage = init;
 }
 
 void client_downloader::sender(const boost::system::error_code &error, const std::size_t bytes_received) {
+  if (error == boost::asio::error::operation_aborted) {
+    return;
+  }
   this->update_stage(error, bytes_received);
   switch (this->stage) {
   case client_downloader::request_data: {
@@ -64,6 +67,11 @@ void client_downloader::receiver(const boost::system::error_code &error, const s
     this->socket.async_receive_from(
         this->frame->get_asio_buffer(), this->remote_tid,
         std::bind(&client_downloader::sender, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+    this->timer.expires_after(this->timeout);
+    this->timer.async_wait([=](const boost::system::error_code e) {
+      this->socket.cancel();
+      this->callback(receive_timeout);
+    });
     break;
   }
   case client_downloader::exit: {

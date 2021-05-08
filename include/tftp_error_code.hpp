@@ -6,6 +6,7 @@ typedef uint32_t error_code;
 
 const error_code no_error = 0;
 const error_code connection_lost = 1;
+const error_code receive_timeout = 2;
 
 } // namespace tftp
 

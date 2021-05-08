@@ -59,6 +59,8 @@ private:
   frame_s frame;
   tftp::error_code exec_error;
   bool is_last_block = false;
+  boost::asio::steady_timer timer;
+  const boost::asio::chrono::duration<uint64_t, std::micro> timeout;
 };
 
 class client_uploader : public std::enable_shared_from_this<client_uploader> {
