@@ -19,7 +19,7 @@ client_downloader::client_downloader(boost::asio::io_context &io, const std::str
                                      const udp::endpoint &remote_endpoint, std::unique_ptr<std::ostream> u_out_stream,
                                      client_completion_callback download_callback)
     : io(io), socket(io), remote_tid(remote_endpoint), file_name(file_name), u_out(std::move(u_out_stream)),
-      callback(download_callback), timer(io), timeout(boost::asio::chrono::microseconds(1000000)) {
+      callback(download_callback), exec_error(0), timer(io), timeout(boost::asio::chrono::seconds(1)) {
   socket.open(udp::v4());
   stage = init;
 }
@@ -38,6 +38,7 @@ void client_downloader::sender(const boost::system::error_code &error, const std
   if (error == boost::asio::error::operation_aborted) {
     return;
   }
+  this->timer.cancel();
   this->update_stage(error, bytes_received);
   switch (this->stage) {
   case client_downloader::request_data: {
@@ -54,7 +55,6 @@ void client_downloader::sender(const boost::system::error_code &error, const std
     auto itr = itr_pair.first;
     auto itr_end = itr_pair.second;
     while (itr != itr_end) {
-      std::cout << *itr << ",";
       (*this->u_out) << *itr;
       itr++;
     }
@@ -70,6 +70,9 @@ void client_downloader::sender(const boost::system::error_code &error, const std
 }
 
 void client_downloader::receiver(const boost::system::error_code &error, const std::size_t bytes_sent) {
+  if (error == boost::asio::error::operation_aborted) {
+    return;
+  }
   this->update_stage(error, bytes_sent);
   switch (this->stage) {
   case client_downloader::receive_data: {
@@ -78,7 +81,10 @@ void client_downloader::receiver(const boost::system::error_code &error, const s
         this->frame->get_asio_buffer(), this->remote_tid,
         std::bind(&client_downloader::sender, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     this->timer.expires_after(this->timeout);
-    this->timer.async_wait([=](const boost::system::error_code e) {
+    this->timer.async_wait([&](const boost::system::error_code error) {
+      if (error == boost::asio::error::operation_aborted) {
+        return;
+      }
       this->socket.cancel();
       this->callback(receive_timeout);
     });
@@ -139,7 +145,6 @@ client_uploader::client_uploader(boost::asio::io_context &io, const std::string 
 
 void client_uploader::sender(const boost::system::error_code &error, const std::size_t bytes_received) {
   this->update_stage(error, bytes_received);
-  std::cout << __PRETTY_FUNCTION__ << "[" << __LINE__ << "] stage :" << this->stage << std::endl;
   switch (this->stage) {
   case client_uploader::upload_request: {
     this->frame = frame::create_write_request_frame(this->file_name);
@@ -172,7 +177,6 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
 
 void client_uploader::receiver(const boost::system::error_code &error, const std::size_t bytes_sent) {
   this->update_stage(error, bytes_sent);
-  std::cout << __PRETTY_FUNCTION__ << "[" << __LINE__ << "] stage :" << this->stage << std::endl;
   switch (this->stage) {
   case client_uploader::wait_ack: {
     this->frame = frame::create_empty_frame();
