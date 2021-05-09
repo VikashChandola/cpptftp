@@ -91,6 +91,7 @@ void client_downloader::receiver(const boost::system::error_code &error, const s
     break;
   }
   case client_downloader::exit: {
+    this->u_out->flush();
     this->callback(this->exec_error);
   }
   default: {
