@@ -6,7 +6,8 @@ intervention from user. Following section show how to test inidividual units.
 * Run `tftp_frame_test` binary. Tests run should pass with no errors.
 
 ### tftp client library
-* Testing ability to download files from remote server.
+* Testing ability to download files from remote server. `tftp_client_test` uses `work_dir` in it's current working
+  directory as test purpose. This should be root directory of tftp server.
   1. Create working directory `work_dir` and run tftp server. Below example runs on port 12345. 
       ```
       #> mkdir -p work_dir
