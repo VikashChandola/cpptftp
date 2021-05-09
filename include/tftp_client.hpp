@@ -31,12 +31,7 @@ class client_downloader : public std::enable_shared_from_this<client_downloader>
 public:
   static client_downloader_s create(boost::asio::io_context &io, const std::string &file_name,
                                     const udp::endpoint &remote_endpoint, std::unique_ptr<std::ostream> u_out_stream,
-                                    client_completion_callback download_callback) {
-    client_downloader_s self(
-        new client_downloader(io, file_name, remote_endpoint, std::move(u_out_stream), download_callback));
-    self->sender(boost::system::error_code(), 0);
-    return self;
-  }
+                                    client_completion_callback download_callback);
 
 private:
   void sender(const boost::system::error_code &error, const std::size_t bytes_received);
