@@ -1,6 +1,12 @@
 # Unit Test Run Guide
 This document explains how to run unit tests. Some tests can be run as standalone binary whereas others require
-intervention from user. Following section show how to test inidividual units.
+intervention from user. Create buildir and build binary with following commands
+```
+#> meson builddir
+#> cd builddir
+#> meson compile
+```
+Following section show how to test inidividual units.
 
 ### tftp framing library
 * Run `tftp_frame_test` binary. Tests run should pass with no errors.
@@ -8,9 +14,8 @@ intervention from user. Following section show how to test inidividual units.
 ### tftp client library
 * Testing ability to download files from remote server. `tftp_client_test` uses `work_dir` in it's current working
   directory as test purpose. This should be root directory of tftp server.
-  1. Create working directory `work_dir` and run tftp server. Below example runs on port 12345. 
+  1. Run tftp server. Below example runs on port 12345.
       ```
-      #> mkdir -p work_dir
       #> ./bin/pyTFTP/server.py ./work_dir/ -H 127.0.0.1 -p 12345
       ```
   2. run test binary to validate download. `tftp_client_test` takes two argument ip and port number.
