@@ -18,7 +18,7 @@ using namespace tftp;
 client_downloader::client_downloader(boost::asio::io_context &io, const std::string &file_name,
                                      const udp::endpoint &remote_endpoint, std::unique_ptr<std::ostream> u_out_stream,
                                      client_completion_callback download_callback)
-    : io(io), socket(io), remote_tid(remote_endpoint), file_name(file_name), u_out(std::move(u_out_stream)),
+    : socket(io), remote_tid(remote_endpoint), file_name(file_name), u_out(std::move(u_out_stream)),
       callback(download_callback), exec_error(0), timer(io), timeout(boost::asio::chrono::seconds(1)) {
   socket.open(udp::v4());
   stage = init;
@@ -138,7 +138,7 @@ void client_downloader::update_stage(const boost::system::error_code &error, con
 client_uploader::client_uploader(boost::asio::io_context &io, const std::string &file_name,
                                  const udp::endpoint &remote_endpoint, std::unique_ptr<std::istream> u_in_stream,
                                  client_completion_callback upload_callback)
-    : io(io), socket(io), remote_tid(remote_endpoint), file_name(file_name), u_in(std::move(u_in_stream)),
+    : socket(io), remote_tid(remote_endpoint), file_name(file_name), u_in(std::move(u_in_stream)),
       callback(upload_callback), block_number(0) {
   socket.open(udp::v4());
   stage = init;

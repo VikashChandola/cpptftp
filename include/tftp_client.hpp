@@ -45,7 +45,6 @@ private:
 
   enum download_stage { init, request_data, receive_data, send_ack, exit } stage;
 
-  boost::asio::io_context &io;
   udp::socket socket;
   udp::endpoint remote_tid;
   std::string file_name;
@@ -81,7 +80,6 @@ private:
 
   enum upload_stage { init, upload_request, wait_ack, upload_data, exit } stage;
 
-  boost::asio::io_context &io;
   udp::socket socket;
   udp::endpoint remote_tid;
   std::string file_name;
