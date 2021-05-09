@@ -1,8 +1,5 @@
 Following are the list of test cases.
 
-- [X] ~~Build mini test framework~~
-- [X] Use boost test as testing framework
-
 ### libtftpframe.so
 - [X] tftp read request frame creation
 - [X] tftp write request frame creation
@@ -24,16 +21,16 @@ Following are the list of test cases.
 - [ ] parse partial error tftp frame
 
 ### libtftpclient.so
-- [ ] Download file of size 0 bytes
-- [ ] Download file of size 100 bytes
-- [ ] Download file of size 512 bytes
-- [ ] Download file of size 513 bytes
-- [ ] Download file of size 33553920 bytes
-- [ ] Download file of size 33553921 bytes
+- [X] Download file of size 0 bytes
+- [X] Download file of size 100 bytes
+- [X] Download file of size 512 bytes
+- [X] Download file of size 513 bytes
+- [X] Download file of size 33553920 bytes
+- [X] Download file of size 33553921 bytes
 - [ ] Download file with slow tftp server ie server responds with some delay
 - [ ] Download file where tftp packets are not received in single udp packet
 - [ ] Download file that is not available in server
-- [ ] Network interruption while downloading(handelling retransmission)
+- [X] Network interruption while downloading(handelling retransmission)
 
 - [ ] Upload file of size 0 bytes
 - [ ] Upload file of size 100 bytes
