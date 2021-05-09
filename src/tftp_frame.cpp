@@ -108,7 +108,8 @@ void frame::parse_frame() {
     if (itr + 2 > this->data.cend()) {
       throw partial_frame_exception("No block number in packet");
     }
-    this->block_number = (static_cast<uint16_t>(*itr) << 8) + (static_cast<uint16_t>(*(itr + 1)));
+    this->block_number = (static_cast<uint16_t>(static_cast<uint8_t>(*itr)) << 8) +
+                         (static_cast<uint16_t>(static_cast<uint8_t>(*(itr + 1))));
   } break;
   case op_ack: {
     throw missing_feature_exception("op ack feature not implemented");
