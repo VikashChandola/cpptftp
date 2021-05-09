@@ -1,4 +1,4 @@
-project('cpptftp', 'cpp', default_options : ['cpp_std=c++17'])
+project('cpptftp', 'cpp', default_options : ['cpp_std=c++17', 'b_sanitize=address', 'b_lundef=false', 'warning_level=3'])
 
 r = run_command('cp', '-r', join_paths(meson.source_root(), 'test/bin/'), meson.build_root())
 r = run_command('mkdir', '-p', join_paths(meson.build_root(), 'work_dir') )
@@ -49,7 +49,4 @@ simple_client_bin = executable('simple_client', sources : simple_client_src,
                                 link_with : [ lib_tftpclient],
                                 dependencies : [dep_pthread])
 #----------------------------------------------------------------------------------------------------------------------
-
-test('tftp frame library test ', tftpframe_test_exec)
-
 

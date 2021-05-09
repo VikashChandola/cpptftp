@@ -7,10 +7,11 @@
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
 
-void cb(tftp::error_code e) { std::cout << "Done" << std::endl; }
+void cb(tftp::error_code e) { std::cout << "Done error_code :" << e << std::endl; }
 
 int main(int argc, char **argv) {
-
+  (void)(argc);
+  (void)(argv);
   boost::asio::io_context io;
   std::string ip("127.0.0.1");
   std::string port("12345");

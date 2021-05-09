@@ -65,8 +65,9 @@ public:
   }
 
 private:
-  static void static_cb(tftp::error_code e) {}
+  static void static_cb(tftp::error_code e) { (void)(e); }
   void cb(tftp::error_code e, std::string job_desc) {
+    (void)(e);
     std::cout << job_desc << " completed" << std::endl;
     if (this->running_jobs <= 0) {
       std::cout << "All jobs completed" << std::endl;

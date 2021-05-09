@@ -102,6 +102,7 @@ void client_downloader::receiver(const boost::system::error_code &error, const s
 
 void client_downloader::update_stage(const boost::system::error_code &error, const std::size_t bytes_transacted) {
   // TODO: Add necessary changes for errornous case
+  (void)(error);
   switch (this->stage) {
   case client_downloader::init: {
     this->stage = client_downloader::request_data;
@@ -197,6 +198,8 @@ void client_uploader::receiver(const boost::system::error_code &error, const std
 
 void client_uploader::update_stage(const boost::system::error_code &error, const std::size_t bytes_transacted) {
   // TODO: Add necessary changes for errornous case
+  (void)(error);
+  (void)(bytes_transacted);
   switch (this->stage) {
   case client_uploader::init: {
     this->stage = client_uploader::upload_request;
