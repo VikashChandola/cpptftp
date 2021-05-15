@@ -99,11 +99,15 @@ void frame::parse_frame() {
   this->code = static_cast<op_code>(*itr);
   itr++;
   switch (this->code) {
-  case op_read_request: {
-    throw missing_feature_exception("Feature Not implemented");
-  } break;
+  case op_read_request:
   case op_write_request: {
-    throw missing_feature_exception("Feature Not implemented");
+    std::stringstream ss;
+    while (*itr != 0x00 && itr < this->data.cend()) {
+      ss << static_cast<char>(*itr);
+      itr++;
+    }
+    this->file_name = ss.str();
+    // one can parse mode from here, but who cares for mode
   } break;
   case op_data: {
     if (itr + 2 > this->data.cend()) {
