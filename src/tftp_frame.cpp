@@ -165,7 +165,7 @@ frame::error_code frame::get_error_code() {
   throw invalid_frame_parameter_exception("Error code can't be provided. Not a error frame");
 }
 
-std::string frame::get_filename() {
+std::string frame::get_filename() const {
   if (this->code == op_read_request || this->code == op_write_request) {
     return this->file_name;
   }

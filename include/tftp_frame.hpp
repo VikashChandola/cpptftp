@@ -44,6 +44,9 @@ namespace tftp {
 
 class frame;
 typedef std::shared_ptr<frame> frame_s;
+typedef std::shared_ptr<const frame> frame_sc;
+typedef const std::shared_ptr<const frame> frame_csc;
+
 class frame {
 public:
   enum op_code {
@@ -95,7 +98,7 @@ public:
 
   std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> get_data_iterator();
 
-  op_code get_op_code() { return this->code; }
+  op_code get_op_code() const { return this->code; }
 
   data_mode get_data_mode();
 
@@ -103,7 +106,7 @@ public:
 
   error_code get_error_code();
 
-  std::string get_filename();
+  std::string get_filename() const;
 
   void resize(std::size_t new_size) { this->data.resize(new_size); }
 
