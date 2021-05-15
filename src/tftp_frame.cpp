@@ -2,6 +2,7 @@
 #include <exception>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <vector>
 
 #include "tftp_exception.hpp"
@@ -158,6 +159,13 @@ frame::error_code frame::get_error_code() {
     return this->e_code;
   }
   throw invalid_frame_parameter_exception("Error code can't be provided. Not a error frame");
+}
+
+std::string frame::get_filename() {
+  if (this->code == op_read_request || this->code == op_write_request) {
+    return this->file_name;
+  }
+  throw invalid_frame_parameter_exception("filename can't be provided. Not a read/write request frame");
 }
 
 // PRIVATE data members

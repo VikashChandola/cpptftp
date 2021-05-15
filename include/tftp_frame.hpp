@@ -38,6 +38,7 @@
  * }
  */
 #define TFTP_FRAME_MAX_DATA_LEN 512
+#define TFTP_FRAME_MAX_FRAME_LEN 516
 
 namespace tftp {
 
@@ -101,6 +102,8 @@ public:
   uint16_t get_block_number();
 
   error_code get_error_code();
+
+  std::string get_filename();
 
   void resize(std::size_t new_size) { this->data.resize(new_size); }
 
