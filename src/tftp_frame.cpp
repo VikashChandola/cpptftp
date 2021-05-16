@@ -48,20 +48,6 @@ frame_s frame::create_write_request_frame(const std::string &file_name, const fr
   return self;
 }
 
-frame_s frame::create_data_frame(std::vector<char>::const_iterator itr,
-                                 const std::vector<char>::const_iterator &itr_end, const uint16_t &block_number,
-                                 const std::size_t frame_size) {
-  if (frame_size > 512) {
-    throw framing_exception("Frame data larger than 512 byes");
-  }
-  frame_s self = frame::get_base_frame(frame::op_data);
-  self->code = frame::op_data;
-  self->append_to_frame(block_number);
-  self->block_number = block_number;
-  self->append_to_frame(itr, std::min(itr_end, itr + frame_size));
-  return self;
-}
-
 frame_s frame::create_ack_frame(const uint16_t &block_number) {
   frame_s self = frame::get_base_frame(op_ack);
   self->code = op_ack;
@@ -151,7 +137,7 @@ frame::data_mode frame::get_data_mode() {
                                           "frame");
 }
 
-uint16_t frame::get_block_number() {
+uint16_t frame::get_block_number() const {
   if (this->code == op_data || this->code == op_ack) {
     return this->block_number;
   }
@@ -195,10 +181,3 @@ void frame::append_to_frame(const uint16_t &data) {
 }
 
 void frame::append_to_frame(const char &&data) { this->data.push_back(static_cast<char>(data)); }
-
-template <typename T> void frame::append_to_frame(T itr, const T &itr_end) {
-  while (itr != itr_end) {
-    this->data.push_back(*itr);
-    itr++;
-  }
-}

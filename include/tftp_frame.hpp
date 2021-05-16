@@ -47,6 +47,10 @@ typedef std::shared_ptr<frame> frame_s;
 typedef std::shared_ptr<const frame> frame_sc;
 typedef const std::shared_ptr<const frame> frame_csc;
 
+typedef std::unique_ptr<frame> frame_u;
+typedef std::unique_ptr<const frame> frame_uc;
+typedef const std::unique_ptr<const frame> frame_cuc;
+
 class frame {
 public:
   enum op_code {
@@ -80,9 +84,14 @@ public:
 
   static frame_s create_write_request_frame(const std::string &file_name, const data_mode mode = mode_octet);
 
-  static frame_s create_data_frame(std::vector<char>::const_iterator itr,
-                                   const std::vector<char>::const_iterator &itr_end, const uint16_t &block_number,
-                                   const std::size_t frame_size = max_data_len);
+  template <typename T> static frame_s create_data_frame(T itr, const T &itr_end, const uint16_t &block_number) {
+    frame_s self = frame::get_base_frame(frame::op_data);
+    self->code = frame::op_data;
+    self->append_to_frame(block_number);
+    self->block_number = block_number;
+    self->append_to_frame(itr, std::min(itr_end, itr + TFTP_FRAME_MAX_DATA_LEN));
+    return self;
+  }
 
   static frame_s create_ack_frame(const uint16_t &block_number);
 
@@ -102,7 +111,7 @@ public:
 
   data_mode get_data_mode();
 
-  uint16_t get_block_number();
+  uint16_t get_block_number() const;
 
   error_code get_error_code();
 
@@ -123,7 +132,12 @@ private:
 
   void append_to_frame(const char &&data);
 
-  template <typename T> void append_to_frame(T itr, const T &itr_end);
+  template <typename T> void append_to_frame(T itr, const T &itr_end) {
+    while (itr != itr_end) {
+      this->data.push_back(*itr);
+      itr++;
+    }
+  }
 
   std::vector<char> data;
   op_code code;
