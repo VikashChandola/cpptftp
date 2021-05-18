@@ -36,17 +36,30 @@ tftpclient_test_exec = executable('tftp_client_test', sources :tftpclient_test_s
                             dependencies : [dep_pthread])
 #----------------------------------------------------------------------------------------------------------------------
 
-bin_tftpclient_src = ['src/client.cpp']
+lib_tftpserver_src = ['src/tftp_server.cpp']
+lib_tftpserver = library('tftpserver', sources : lib_tftpserver_src,
+                         include_directories :tftp_inc_dir,
+                         link_with : lib_tftpframe,
+                         dependencies : [dep_pthread],
+                         version : '0.0.1', soversion : '0')
+#----------------------------------------------------------------------------------------------------------------------
+
+bin_tftpclient_src = ['src/client.cpp','src/tftp_client.cpp', 'src/tftp_frame.cpp']
 bin_tftpclient = executable('tftp_client', sources : bin_tftpclient_src,
+                                include_directories :tftp_inc_dir,
+                                dependencies : [dep_pthread])
+#----------------------------------------------------------------------------------------------------------------------
+
+simple_client_src = ['src/simple_client.cpp','src/tftp_client.cpp', 'src/tftp_frame.cpp']
+simple_client_bin = executable('simple_client', sources : simple_client_src,
                                 include_directories :tftp_inc_dir,
                                 link_with : [ lib_tftpclient],
                                 dependencies : [dep_pthread])
 #----------------------------------------------------------------------------------------------------------------------
 
-simple_client_src = ['src/simple_client.cpp']
-simple_client_bin = executable('simple_client', sources : simple_client_src,
+simple_server_src = ['src/simple_server.cpp', 'src/tftp_server.cpp', 'src/tftp_frame.cpp']
+simple_server_bin = executable('simple_server', sources : simple_server_src,
                                 include_directories :tftp_inc_dir,
-                                link_with : [ lib_tftpclient],
                                 dependencies : [dep_pthread])
 #----------------------------------------------------------------------------------------------------------------------
 
