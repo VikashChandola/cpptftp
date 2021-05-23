@@ -56,11 +56,18 @@ frame_s frame::create_ack_frame(const uint16_t &block_number) {
   return self;
 }
 
-frame_s frame::create_error_frame(const frame::error_code &e_code, const std::string &error_message) {
+frame_s frame::create_error_frame(const frame::error_code &e_code, std::string error_message) {
   frame_s self = frame::get_base_frame(op_error);
   self->code = op_error;
   self->append_to_frame(static_cast<uint16_t>(e_code));
   self->e_code = e_code;
+  if(error_message.empty()) {
+    try{
+      error_message = error_code_map.at(e_code);
+    } catch(std::out_of_range &e) {
+      error_message = "Unknown error occured";
+    }
+  }
   self->append_to_frame(error_message);
   self->error_message = error_message;
   self->append_to_frame(0x00);

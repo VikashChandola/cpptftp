@@ -95,7 +95,7 @@ public:
 
   static frame_s create_ack_frame(const uint16_t &block_number);
 
-  static frame_s create_error_frame(const error_code &e_code, const std::string &error_message = "");
+  static frame_s create_error_frame(const error_code &e_code, std::string error_message = "");
 
   static frame_s create_empty_frame();
 
