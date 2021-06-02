@@ -27,7 +27,7 @@ typedef std::shared_ptr<download_server> download_server_s;
 class server {
 public:
   server(boost::asio::io_context &io, frame_csc &frame, const udp::endpoint &endpoint,
-         const std::string &work_dir, uint64_t ms_timeout = 1000);
+         const std::string &work_dir, const uint64_t &ms_timeout = 1000);
 
 protected:
   udp::socket socket;
@@ -63,7 +63,6 @@ private:
   void update_stage(const boost::system::error_code &e,const std::size_t &bytes_transacted);
 
   enum download_server_stage{
-    ds_init,
     ds_send_data,
     ds_resend_data,
     ds_recv_ack,
