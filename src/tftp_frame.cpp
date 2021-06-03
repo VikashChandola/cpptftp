@@ -61,10 +61,10 @@ frame_s frame::create_error_frame(const frame::error_code &e_code, std::string e
   self->code = op_error;
   self->append_to_frame(static_cast<uint16_t>(e_code));
   self->e_code = e_code;
-  if(error_message.empty()) {
-    try{
+  if (error_message.empty()) {
+    try {
       error_message = error_code_map.at(e_code);
-    } catch(std::out_of_range &e) {
+    } catch (std::out_of_range &e) {
       error_message = "Unknown error occured";
     }
   }

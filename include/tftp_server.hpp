@@ -1,7 +1,6 @@
 #ifndef __TFTP_HPP__
 #define __TFTP_HPP__
 
-#include <boost/asio.hpp>
 #include <array>
 #include <boost/asio.hpp>
 #include <cstdlib>
@@ -11,8 +10,8 @@
 #include <iostream>
 #include <memory>
 
-#include "tftp_frame.hpp"
 #include "tftp_error_code.hpp"
+#include "tftp_frame.hpp"
 
 using boost::asio::ip::udp;
 
@@ -26,8 +25,8 @@ typedef std::shared_ptr<download_server> download_server_s;
 
 class server {
 public:
-  server(boost::asio::io_context &io, frame_csc &frame, const udp::endpoint &endpoint,
-         const std::string &work_dir, const uint64_t &ms_timeout = 1000);
+  server(boost::asio::io_context &io, frame_csc &frame, const udp::endpoint &endpoint, const std::string &work_dir,
+         const uint64_t &ms_timeout = 1000);
 
 protected:
   udp::socket socket;
@@ -48,8 +47,8 @@ public:
                   const std::string &work_dir);
 
   ~download_server();
-private:
 
+private:
   void sender();
 
   void sender_cb(const boost::system::error_code &e, const std::size_t &bytes_received);
@@ -60,18 +59,17 @@ private:
 
   void receiver_cb(const boost::system::error_code &e, const std::size_t &bytes_sent);
 
-  void update_stage(const boost::system::error_code &e,const std::size_t &bytes_transacted);
+  void update_stage(const boost::system::error_code &e, const std::size_t &bytes_transacted);
 
-  enum download_server_stage{
+  enum download_server_stage {
     ds_send_data,
     ds_resend_data,
     ds_recv_ack,
     ds_send_error,
     ds_recv_timeout,
-    ds_exit
   };
 
-  static const uint8_t retry_count = 3;
+  static const uint8_t max_retry_count = 3;
 
   download_server_stage stage;
   std::ifstream read_stream;
@@ -79,14 +77,12 @@ private:
   bool is_last_frame;
   char data[TFTP_FRAME_MAX_DATA_LEN];
   std::streamsize data_size;
-  uint8_t resend_count;
+  uint8_t retry_count;
 };
 
 class distributor : public std::enable_shared_from_this<distributor> {
 public:
-
-  static distributor_s create(boost::asio::io_context &io, const udp::endpoint &local_endpoint,
-                              std::string work_dir);
+  static distributor_s create(boost::asio::io_context &io, const udp::endpoint &local_endpoint, std::string work_dir);
 
   static distributor_s create(boost::asio::io_context &io, const uint16_t udp_port, std::string work_dir);
 
@@ -95,14 +91,13 @@ public:
   uint64_t start_service();
 
 private:
-
   void perform_distribution();
 
   void perform_distribution_cb(const boost::system::error_code &error, const std::size_t &bytes_received);
 
   distributor(boost::asio::io_context &io, const udp::endpoint &local_endpoint, std::string &work_dir);
 
-  //These two data members are forcing distributor to accept one connection at a time
+  // These two data members are forcing distributor to accept one connection at a time
   frame_s first_frame;
   udp::endpoint remote_endpoint;
 
@@ -112,6 +107,6 @@ private:
   uint64_t server_count;
 };
 
-} //namespace tftp
+} // namespace tftp
 
 #endif

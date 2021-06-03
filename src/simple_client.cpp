@@ -25,11 +25,16 @@ int main(int argc, char **argv) {
   socket.async_send_to(boost::asio::buffer(send_buf), remote_endpoint, cb);*/
 
   tftp::client_s tftp_client = tftp::client::create(io, remote_endpoint);
-  tftp_client->download_file( "sample", "simple_client_sample", cb);
+  std::string filename_base("sample_");
+  for (int i = 0; i < 32; i++) {
+    std::string filename = filename_base + std::to_string(i);
+    std::string local_filename = std::string("simple_client_") + filename;
+    tftp_client->download_file(filename, local_filename, cb);
+  }
   // tftp_client->download_file("0010_file", "0010_file", cb);
   // tftp_client->download_file("0100_file", "0100_file", cb);
   // tftp_client->download_file("1000_file", "1000_file", cb);
-  //tftp_client->upload_file("simple_client", "simple_client", cb);
+  // tftp_client->upload_file("simple_client", "simple_client", cb);
   io.run();
   return 0;
 }
