@@ -110,7 +110,8 @@ void frame::parse_frame() {
                          (static_cast<uint16_t>(static_cast<uint8_t>(*(itr + 1))));
   } break;
   case op_ack: {
-    throw missing_feature_exception("op ack feature not implemented");
+    this->block_number = (static_cast<uint16_t>(static_cast<uint8_t>(*itr)) << 8) +
+                         (static_cast<uint16_t>(static_cast<uint8_t>(*(itr + 1))));
   } break;
   case op_error: {
     throw missing_feature_exception("op error feature not implemented");
