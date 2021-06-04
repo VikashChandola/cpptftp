@@ -115,6 +115,8 @@ public:
 
   error_code get_error_code();
 
+  std::string get_error_message();
+
   std::string get_filename() const;
 
   void resize(std::size_t new_size) { this->data.resize(new_size); }
