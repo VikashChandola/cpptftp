@@ -189,5 +189,8 @@ BOOST_DATA_TEST_CASE(error_frame_creation, bdata::make(error_frame_dataset()), t
   }
 
   itr++;
-  BOOST_TEST((itr == f_data.cend()), "Invalid end for ack frame");
+  if(!error_message.empty()){
+    BOOST_TEST((itr == f_data.cend()), "Invalid end for ack frame");
+  }
+  BOOST_TEST(*(f_data.cend()-1) == 0x00, "Last byte of ack frame is not 0x00");
 }
