@@ -78,6 +78,7 @@ private:
   char data[TFTP_FRAME_MAX_DATA_LEN];
   std::streamsize data_size;
   uint8_t retry_count;
+  frame::error_code tftp_error_code;
 };
 
 class distributor : public std::enable_shared_from_this<distributor> {

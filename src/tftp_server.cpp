@@ -27,8 +27,9 @@ void download_server::serve(boost::asio::io_context &io, frame_csc &frame, const
                             const std::string &work_dir) {
   download_server_s self = std::make_shared<download_server>(io, frame, endpoint, work_dir);
   if (!self->read_stream.is_open()) {
-    std::cout << self->client_endpoint << " Failed to read '" << self->filename << "'" << std::endl;
-    return;
+    std::cerr << self->client_endpoint << " Failed to read '" << self->filename << "'" << std::endl;
+    self->tftp_error_code = frame::file_not_found;
+    self->stage = ds_send_error;
   }
   self->sender();
 }
@@ -60,6 +61,13 @@ void download_server::sender() {
         this->frame->get_asio_buffer(), this->client_endpoint,
         std::bind(&download_server::sender_cb, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     return;
+  } break;
+  case ds_send_error: {
+    this->frame = frame::create_error_frame(this->tftp_error_code);
+    this->socket.async_send_to(
+        this->frame->get_asio_buffer(), this->client_endpoint,
+        std::bind(&download_server::sender_cb, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+
   } break;
   default: {
     std::cerr << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage
@@ -215,11 +223,13 @@ distributor_s distributor::create(boost::asio::io_context &io, const uint16_t ud
 }*/
 
 uint64_t distributor::start_service() {
+  std::cout << "Starting distribution on :" << this->socket.local_endpoint() << std::endl;
   this->perform_distribution();
   return server_count;
 }
 
 uint64_t distributor::stop_service() {
+  std::cout << "Stopping distribution on :" << this->socket.local_endpoint() << std::endl;
   this->socket.cancel();
   return server_count;
 }
