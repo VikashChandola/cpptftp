@@ -7,7 +7,9 @@
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
 
-void cb(tftp::error_code e) { std::cout << "Done error_code :" << e << std::endl; }
+void cb(const std::string &filename, tftp::error_code e) {
+  std::cout << "Done file name :" << filename << ", error_code :" << e << std::endl;
+}
 
 int main(int argc, char **argv) {
   (void)(argc);
@@ -26,10 +28,19 @@ int main(int argc, char **argv) {
 
   tftp::client_s tftp_client = tftp::client::create(io, remote_endpoint);
   std::string filename_base("sample_");
-  for (int i = 0; i < 32; i++) {
+  for (int i = 0; i < 34; i++) {
     std::string filename = filename_base + std::to_string(i);
     std::string local_filename = std::string("simple_client_") + filename;
-    tftp_client->download_file(filename, local_filename, cb);
+    tftp_client->download_file(filename, local_filename, [=](tftp::error_code error) {
+      std::cout << "Download status for " << filename << " status " << error << std::endl;
+      if (error != 0) {
+        std::cout << "Not reversing" << std::endl;
+        return;
+      }
+      tftp_client->upload_file(local_filename, local_filename, [&](tftp::error_code error) {
+        std::cout << "reversed " << filename << " Status :" << error << std::endl;
+      });
+    });
   }
   // tftp_client->download_file("0010_file", "0010_file", cb);
   // tftp_client->download_file("0100_file", "0100_file", cb);

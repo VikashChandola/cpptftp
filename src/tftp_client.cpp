@@ -188,6 +188,7 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
     break;
   }
   default:
+    std::cout << "Falling" << std::endl;
     break;
   }
 }
@@ -204,8 +205,10 @@ void client_uploader::receiver(const boost::system::error_code &error, const std
   }
   case client_uploader::exit: {
     this->callback(this->exec_error);
+    return;
   }
   default: {
+    std::cout << "Falling" << std::endl;
     break;
   }
   }

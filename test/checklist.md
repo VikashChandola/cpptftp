@@ -43,3 +43,15 @@ Following are the list of test cases.
 - [ ] Upload file that is not available in server
 - [ ] Upload interruption while downloading(handelling retransmission)
 - [ ] Network interruption while uploading(handelling retransmission)
+
+### libtftpserver.so
+- [ ] Serve file of size 0 bytes
+- [ ] Serve file of size 100 bytes
+- [ ] Serve file of size 512 bytes
+- [ ] Serve file of size 513 bytes
+- [ ] Serve file of size 33553920 bytes
+- [ ] Serve file of size 33553921 bytes
+- [ ] Serve a file that doesn't exit
+- [ ] Serve many files concurrently to many clients
+- [ ] Serve a single file concurrently to multiple clients
+- [ ] Serving client who doesn't send ack all the times(ie retransmission scenario)

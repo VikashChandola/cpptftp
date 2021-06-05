@@ -2,8 +2,8 @@
 #include <iostream>
 #include <string>
 
-#include "tftp_server.hpp"
 #include "tftp_error_code.hpp"
+#include "tftp_server.hpp"
 
 void cb(tftp::error_code e) { std::cout << "Done error_code :" << e << std::endl; }
 
@@ -24,10 +24,16 @@ int main(int argc, char **argv) {
 
   tftp::distributor_s tftp_server = tftp::distributor::create(io, local_endpoint, "work_dir");
   tftp_server->start_service();
+
+  boost::asio::steady_timer timer(io, boost::asio::chrono::seconds(10));
+  timer.async_wait([&](const boost::system::error_code &) {
+    std::cout << "Time up " << std::endl;
+    // tftp_server->stop_service();
+  });
   // tftp_client->download_file("0010_file", "0010_file", cb);
   // tftp_client->download_file("0100_file", "0100_file", cb);
   // tftp_client->download_file("1000_file", "1000_file", cb);
-  //tftp_client->upload_file("simple_client", "simple_client", cb);
+  // tftp_client->upload_file("simple_client", "simple_client", cb);
   io.run();
   return 0;
 }
