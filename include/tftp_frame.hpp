@@ -153,3 +153,11 @@ private:
 
 } // namespace tftp
 #endif
+
+/* NOTES:
+ * 1. It would have been more efficient if there was one parent class frame and different kind of frames example
+ *    error frame, data frame, request frame etc were child classes
+ *    Why, User of frame needs frame specific data for example user of error frame will need a getter for error
+ *    message but this method is always there for frame. It becomes useless API if frame is a data frame. This leads
+ *    to check in each getter for frame type. Most of the public methods are not relevnat for frame object.
+ */

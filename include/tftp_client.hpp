@@ -132,3 +132,19 @@ private:
 } // namespace tftp
 
 #endif
+
+/* NOTES:
+ * 1. update_stage method of client_[downloader|uploader] is not specific to sender or receiver. This is problematic
+ *    because of stage update may also depend on what was the last thing that was done. Adding another argument to
+ *    distiguish caller(sender or receiver) is not going to help either. That will be clubbing to two separate
+ *    functionalities in single method. It will be more efficient to have separate update_stage method for sender
+ *    and receiver. This way if we want to resend a frame then we don't have to put that logic in
+ *    update_stage and receiver(both). Such approach is much uglier than having a sender_cb that calls to sender
+ *    directly if resend needed. This approach is used in case of download_server implementaiton.
+ *
+ * 2. There are multiple exit points in client_downloader class. Exit point is a point from where callback is invoked
+ *    It's difficult to keep track this way. If we want to a set of things before exiting then this will have to
+ *    be replicated in all the exit points. Secondly such sporadic exits may lead to situation where one forgets to
+ *    call callback and user never gets notified. It will be better to have callback invokation from one place. May
+ *    be destructor for object or some spefic method.
+ */
