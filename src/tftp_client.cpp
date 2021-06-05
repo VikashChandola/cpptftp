@@ -51,6 +51,21 @@ void client_downloader::sender(const boost::system::error_code &error, const std
   case client_downloader::send_ack: {
     this->frame->resize(bytes_received);
     this->frame->parse_frame();
+    switch (this->frame->get_op_code()) {
+    case frame::op_error:
+      std::cerr << "Server responded with error :" << this->frame->get_error_message() << std::endl;
+      this->callback(server_error_response);
+      return;
+      break;
+    case frame::op_data:
+      break;
+    default:
+      std::cerr << "Expected data frame received received frame with op code :" << this->frame->get_op_code()
+                << std::endl;
+      this->callback(invalid_server_response);
+      return;
+      break;
+    }
     auto itr_pair = this->frame->get_data_iterator();
     auto itr = itr_pair.first;
     auto itr_end = itr_pair.second;
