@@ -147,4 +147,7 @@ private:
  *    be replicated in all the exit points. Secondly such sporadic exits may lead to situation where one forgets to
  *    call callback and user never gets notified. It will be better to have callback invokation from one place. May
  *    be destructor for object or some spefic method.
+ * 3. There is no logging in client library. This is not good. It makes first level debugging impossible. Always
+ *    add logs with log levels in your program. This way user can get desired amount of logs. This was addressed to
+ *    some extent in server implementation. There it's only cout and cerr but better than nothing.
  */

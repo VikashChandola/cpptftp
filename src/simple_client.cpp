@@ -37,8 +37,8 @@ int main(int argc, char **argv) {
         std::cout << "Not reversing" << std::endl;
         return;
       }
-      tftp_client->upload_file(local_filename, local_filename, [&](tftp::error_code error) {
-        std::cout << "reversed " << filename << " Status :" << error << std::endl;
+      tftp_client->upload_file(local_filename, local_filename, [=](tftp::error_code error) {
+        std::cout << "reversed " << local_filename << " Status :" << error << std::endl;
       });
     });
   }

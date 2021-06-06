@@ -155,12 +155,15 @@ client_uploader::client_uploader(boost::asio::io_context &io, const std::string 
                                  const udp::endpoint &remote_endpoint, std::unique_ptr<std::istream> u_in_stream,
                                  client_completion_callback upload_callback)
     : socket(io), remote_tid(remote_endpoint), file_name(file_name), u_in(std::move(u_in_stream)),
-      callback(upload_callback), block_number(0) {
+      callback(upload_callback), exec_error(0), block_number(0) {
   socket.open(udp::v4());
   stage = init;
 }
 
 void client_uploader::sender(const boost::system::error_code &error, const std::size_t bytes_received) {
+  std::cout << this->remote_tid << " [" << __func__ << ":" << __LINE__ << "] "
+            << " Stage :" << this->stage << std::endl;
+
   this->update_stage(error, bytes_received);
   switch (this->stage) {
   case client_uploader::upload_request: {
@@ -187,13 +190,20 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
         std::bind(&client_uploader::receiver, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
     break;
   }
+  case client_uploader::exit: {
+    this->callback(this->exec_error);
+    return;
+  }
   default:
-    std::cout << "Falling" << std::endl;
+    std::cerr << this->remote_tid << " [" << __func__ << "] Stage :" << this->stage
+              << " state machine reached invalid stage." << std::endl;
     break;
   }
 }
 
 void client_uploader::receiver(const boost::system::error_code &error, const std::size_t bytes_sent) {
+  std::cout << this->remote_tid << " [" << __func__ << "] "
+            << " Stage :" << this->stage << std::endl;
   this->update_stage(error, bytes_sent);
   switch (this->stage) {
   case client_uploader::wait_ack: {
@@ -208,7 +218,8 @@ void client_uploader::receiver(const boost::system::error_code &error, const std
     return;
   }
   default: {
-    std::cout << "Falling" << std::endl;
+    std::cerr << this->remote_tid << " [" << __func__ << "] Stage :" << this->stage
+              << " state machine reached invalid stage." << std::endl;
     break;
   }
   }
