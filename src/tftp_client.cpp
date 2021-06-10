@@ -50,7 +50,11 @@ void client_downloader::sender(const boost::system::error_code &error, const std
   }
   case client_downloader::send_ack: {
     this->frame->resize(bytes_received);
-    this->frame->parse_frame();
+    try {
+      this->frame->parse_frame();
+    } catch (framing_exception &e) {
+      this->callback(invalid_server_response);
+    }
     switch (this->frame->get_op_code()) {
     case frame::op_error:
       std::cerr << "Server responded with error :" << this->frame->get_error_message() << std::endl;
@@ -174,6 +178,27 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
     break;
   }
   case client_uploader::upload_data: {
+    try {
+      this->frame->parse_frame();
+    } catch (framing_exception &e) {
+      std::cout << this->remote_tid << " [" << __func__ << "] Failed to parse response from " << std::endl;
+      this->callback(invalid_server_response);
+      return;
+    }
+    switch (this->frame->get_op_code()) {
+    case frame::op_ack:
+      break;
+    case frame::op_error:
+      std::cerr << this->remote_tid << " [" << __func__
+                << "]  Server responded with error :" << this->frame->get_error_code() << std::endl;
+      this->callback(server_error_response);
+      return;
+    default:
+      std::cerr << this->remote_tid << " [" << __func__
+                << "]  Server responded with unknown opcode :" << this->frame->get_op_code() << std::endl;
+      this->callback(invalid_server_response);
+      return;
+    }
     char data_array[512] = {0};
     u_in->read(data_array, 512);
     // std::vector<char> data_vector(data_array);
