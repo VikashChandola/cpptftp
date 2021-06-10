@@ -15,22 +15,17 @@ int main(int argc, char **argv) {
   (void)(argc);
   (void)(argv);
   boost::asio::io_context io;
-  std::string ip("127.0.0.1");
+  std::string ip(argv[1]);
   std::string port("12345");
   udp::resolver resolver(io);
   udp::endpoint remote_endpoint;
   remote_endpoint = *resolver.resolve(udp::v4(), ip, port).begin();
 
-  /*udp::socket socket(io);
-  socket.open(udp::v4());
-  std::array<char, 1> send_buf  = {{ 0 }};
-  socket.async_send_to(boost::asio::buffer(send_buf), remote_endpoint, cb);*/
-
   tftp::client_s tftp_client = tftp::client::create(io, remote_endpoint);
   std::string filename_base("sample_");
-  for (int i = 0; i < 34; i++) {
+  for (int i = 0; i < 32; i++) {
     std::string filename = filename_base + std::to_string(i);
-    std::string local_filename = std::string("simple_client_") + filename;
+    std::string local_filename = std::string("./client_dir/") + std::string("simple_client_") + filename;
     tftp_client->download_file(filename, local_filename, [=](tftp::error_code error) {
       std::cout << "Download status for " << filename << " status " << error << std::endl;
       if (error != 0) {
@@ -38,7 +33,7 @@ int main(int argc, char **argv) {
         return;
       }
       tftp_client->upload_file(local_filename, local_filename, [=](tftp::error_code error) {
-        std::cout << "reversed " << local_filename << " Status :" << error << std::endl;
+        std::cout << "Reversed " << local_filename << " Status :" << error << std::endl;
       });
     });
   }

@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
   (void)(argc);
   (void)(argv);
   boost::asio::io_context io;
-  std::string ip("127.0.0.1");
+  std::string ip("0.0.0.0");
   std::string port("12345");
   udp::resolver resolver(io);
   udp::endpoint local_endpoint;
@@ -22,12 +22,12 @@ int main(int argc, char **argv) {
   std::array<char, 1> send_buf  = {{ 0 }};
   socket.async_send_to(boost::asio::buffer(send_buf), local_endpoint, cb);*/
 
-  tftp::distributor_s tftp_server = tftp::distributor::create(io, local_endpoint, "work_dir");
+  tftp::distributor_s tftp_server = tftp::distributor::create(io, local_endpoint, "server_dir");
   tftp_server->start_service();
 
   boost::asio::steady_timer timer(io, boost::asio::chrono::seconds(10));
   timer.async_wait([&](const boost::system::error_code &) {
-    std::cout << "Time up " << std::endl;
+    //std::cout << "Time up " << std::endl;
     // tftp_server->stop_service();
   });
   // tftp_client->download_file("0010_file", "0010_file", cb);
