@@ -202,7 +202,7 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
 }
 
 void client_uploader::receiver(const boost::system::error_code &error, const std::size_t bytes_sent) {
-  std::cout << this->remote_tid << " [" << __func__ << "] "
+  std::cout << this->remote_tid << " [" << __func__ << ":" << __LINE__ << "] "
             << " Stage :" << this->stage << std::endl;
   this->update_stage(error, bytes_sent);
   switch (this->stage) {

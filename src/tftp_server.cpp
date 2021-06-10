@@ -405,7 +405,13 @@ void distributor::perform_distribution_cb(const boost::system::error_code &error
     return;
   }
   this->first_frame->resize(bytes_received);
-  this->first_frame->parse_frame();
+  try {
+    this->first_frame->parse_frame();
+  } catch (framing_exception &e) {
+    std::cout << "Received bad data from " << this->remote_endpoint << std::endl;
+    this->perform_distribution();
+    return;
+  }
   std::cout << "Received request from " << this->remote_endpoint << std::endl;
   spin_tftp_server(this->io, this->first_frame, this->remote_endpoint, this->work_dir);
   this->perform_distribution();
