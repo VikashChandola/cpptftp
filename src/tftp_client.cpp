@@ -58,7 +58,7 @@ void client_downloader::sender(const boost::system::error_code &error, const std
     switch (this->frame->get_op_code()) {
     case frame::op_error:
       std::cerr << "Server responded with error :" << this->frame->get_error_message() << std::endl;
-      this->callback(server_error_response);
+      this->callback(frame->get_error_code());
       return;
       break;
     case frame::op_data:
@@ -191,7 +191,7 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
     case frame::op_error:
       std::cerr << this->remote_tid << " [" << __func__
                 << "]  Server responded with error :" << this->frame->get_error_code() << std::endl;
-      this->callback(server_error_response);
+      this->callback(this->frame->get_error_code());
       return;
     default:
       std::cerr << this->remote_tid << " [" << __func__
