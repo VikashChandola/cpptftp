@@ -74,7 +74,7 @@ public:
     disk_full,
     illegal_tftp_operation,
     unknown_transfer_id,
-    file_exists,
+    file_already_exists,
     no_such_user
   };
 

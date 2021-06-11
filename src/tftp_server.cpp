@@ -1,5 +1,6 @@
 #include "tftp_server.hpp"
 #include "tftp_frame.hpp"
+#include <filesystem>
 #include <iostream>
 
 using boost::asio::ip::udp;
@@ -35,8 +36,7 @@ void download_server::serve(boost::asio::io_context &io, frame_csc &frame, const
 }
 
 void download_server::sender() {
-  std::cout << this->client_endpoint << " [" << __func__ << "] "
-            << " Stage :" << this->stage << std::endl;
+  // std::cout << this->client_endpoint << " [" << __func__ << "] " << " Stage :" << this->stage << std::endl;
   switch (this->stage) {
   case download_server::ds_send_data: {
     if (this->fill_data_buffer() == false) {
@@ -90,9 +90,10 @@ bool download_server::fill_data_buffer() {
 
 void download_server::sender_cb(const boost::system::error_code &error, const std::size_t &bytes_sent) {
   (void)(bytes_sent);
-  std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
+  // std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
   if (error) {
-    std::cout << this->client_endpoint << " [" << __func__ << "] error :" << error << std::endl;
+    std::cerr << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << ", error :" << error
+              << std::endl;
     return;
   }
   switch (this->stage) {
@@ -111,7 +112,7 @@ void download_server::sender_cb(const boost::system::error_code &error, const st
 }
 
 void download_server::receiver() {
-  std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
+  // std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
   switch (this->stage) {
   case ds_recv_ack: {
     this->frame = frame::create_empty_frame();
@@ -136,7 +137,7 @@ void download_server::receiver() {
 
 void download_server::receiver_cb(const boost::system::error_code &error, const std::size_t &bytes_received) {
   if (error && error != boost::asio::error::operation_aborted) {
-    std::cout << this->client_endpoint << " [" << __func__ << "] error :" << error << std::endl;
+    std::cerr << this->client_endpoint << " [" << __func__ << "] error :" << error << std::endl;
     return;
   }
   this->timer.cancel();
@@ -145,7 +146,7 @@ void download_server::receiver_cb(const boost::system::error_code &error, const 
     this->retry_count = 0;
     if (this->receive_endpoint != this->client_endpoint) {
       // somebody is fucking up on this udp port
-      std::cout << this->client_endpoint << " [" << __func__ << "] Received response from wrong endpoint ["
+      std::cerr << this->client_endpoint << " [" << __func__ << "] Received response from wrong endpoint ["
                 << this->receive_endpoint << "]" << std::endl;
       this->receiver();
       return;
@@ -155,7 +156,7 @@ void download_server::receiver_cb(const boost::system::error_code &error, const 
       this->frame->parse_frame();
     } catch (framing_exception &e) {
       // bad frame, check again
-      std::cout << this->client_endpoint << " [" << __func__ << "] Failed to parse ack frame"
+      std::cerr << this->client_endpoint << " [" << __func__ << "] Failed to parse ack frame"
                 << " Error :" << e.what() << std::endl;
       this->receiver();
       return;
@@ -200,8 +201,7 @@ void download_server::receiver_cb(const boost::system::error_code &error, const 
 
 upload_server::upload_server(boost::asio::io_context &io, frame_csc &first_frame, const udp::endpoint &endpoint,
                              const std::string &work_dir)
-    : server(io, first_frame, endpoint, work_dir), stage(us_send_ack),
-      write_stream(this->filename, std::ios::out | std::ios::binary) {
+    : server(io, first_frame, endpoint, work_dir), stage(us_send_ack) {
   std::cout << this->client_endpoint << " Provisioning upload_server object" << std::endl;
 }
 
@@ -212,16 +212,23 @@ upload_server::~upload_server() {
 void upload_server::serve(boost::asio::io_context &io, frame_csc &frame, const udp::endpoint &endpoint,
                           const std::string &work_dir) {
   upload_server_s self = std::make_shared<upload_server>(io, frame, endpoint, work_dir);
-  if (!self->write_stream.is_open()) {
-    std::cerr << self->client_endpoint << " Failed to open '" << self->filename << "'" << std::endl;
-    self->tftp_error_code = frame::file_not_found;
+  if (std::filesystem::exists(self->filename)) {
+    std::cerr << self->client_endpoint << ": '" << self->filename << "' File already exists." << std::endl;
+    self->tftp_error_code = frame::file_already_exists;
     self->stage = us_send_error;
+  } else {
+    self->write_stream = std::ofstream(self->filename, std::ios::out | std::ios::binary);
+    if (!self->write_stream.is_open()) {
+      std::cerr << self->client_endpoint << " Failed to open '" << self->filename << "'" << std::endl;
+      self->tftp_error_code = frame::file_not_found;
+      self->stage = us_send_error;
+    }
   }
   self->sender();
 }
 
 void upload_server::sender() {
-  std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
+  // std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
   switch (this->stage) {
   case us_send_ack: {
     this->frame = frame::create_ack_frame(this->block_number);
@@ -246,9 +253,9 @@ void upload_server::sender() {
 
 void upload_server::sender_cb(const boost::system::error_code &error, const std::size_t &bytes_sent) {
   (void)(bytes_sent);
-  std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
+  // std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
   if (error) {
-    std::cout << this->client_endpoint << " [" << __func__ << "] error :" << error << std::endl;
+    std::cerr << this->client_endpoint << " [" << __func__ << "] error :" << error << std::endl;
     return;
   }
   switch (this->stage) {
@@ -273,7 +280,7 @@ void upload_server::sender_cb(const boost::system::error_code &error, const std:
 }
 
 void upload_server::receiver() {
-  std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
+  // std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
   switch (this->stage) {
   case us_recv_data: {
     this->frame = frame::create_empty_frame();
@@ -299,7 +306,7 @@ void upload_server::receiver() {
 }
 
 void upload_server::receiver_cb(const boost::system::error_code &error, const std::size_t &bytes_received) {
-  std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
+  // std::cout << this->client_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
   if (error && error != boost::asio::error::operation_aborted) {
     std::cout << this->client_endpoint << " [" << __func__ << "] error :" << error << std::endl;
     return;
@@ -309,7 +316,7 @@ void upload_server::receiver_cb(const boost::system::error_code &error, const st
   case us_recv_data: {
     if (this->receive_endpoint != this->client_endpoint) {
       this->retry_count++;
-      std::cout << this->client_endpoint << " [" << __func__ << "] Received response from wrong endpoint ["
+      std::cerr << this->client_endpoint << " [" << __func__ << "] Received response from wrong endpoint ["
                 << this->receive_endpoint << "]" << std::endl;
       this->receiver();
       return;
@@ -318,14 +325,14 @@ void upload_server::receiver_cb(const boost::system::error_code &error, const st
       this->frame->resize(bytes_received);
       this->frame->parse_frame();
     } catch (framing_exception &e) {
-      std::cout << this->client_endpoint << " [" << __func__ << "] Failed to parse data frame"
+      std::cerr << this->client_endpoint << " [" << __func__ << "] Failed to parse data frame"
                 << " Error :" << e.what() << std::endl;
       this->retry_count++;
       this->receiver();
       return;
     }
     if (this->frame->get_op_code() != frame::op_data) {
-      std::cout << this->client_endpoint << " [" << __func__ << "] Invalid tftp frame received " << std::endl;
+      std::cerr << this->client_endpoint << " [" << __func__ << "] Invalid tftp frame received " << std::endl;
       this->retry_count++;
       this->receiver();
       return;

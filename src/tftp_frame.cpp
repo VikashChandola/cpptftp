@@ -22,7 +22,7 @@ static std::map<frame::error_code, std::string> error_code_map{
     {frame::disk_full, "Disk full or allocation exceeded"},
     {frame::illegal_tftp_operation, "Illegal TFTP operation."},
     {frame::unknown_transfer_id, "Unknown transfer ID."},
-    {frame::file_exists, "File already exists."},
+    {frame::file_already_exists, "File already exists."},
     {frame::no_such_user, "No such user."},
 };
 
