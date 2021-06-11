@@ -45,13 +45,21 @@ Following are the list of test cases.
 - [ ] Network interruption while uploading(handelling retransmission)
 
 ### libtftpserver.so
-- [ ] Serve file of size 0 bytes
-- [ ] Serve file of size 100 bytes
-- [ ] Serve file of size 512 bytes
-- [ ] Serve file of size 513 bytes
-- [ ] Serve file of size 33553920 bytes
-- [ ] Serve file of size 33553921 bytes
-- [ ] Serve a file that doesn't exit
-- [ ] Serve many files concurrently to many clients
-- [ ] Serve a single file concurrently to multiple clients
+- [ ] Client request to download file of size 0 bytes
+- [ ] Client request to download file of size 100 bytes
+- [ ] Client request to download file of size 512 bytes
+- [ ] Client request to download file of size 513 bytes
+- [ ] Client request to download file of size 33553920 bytes
+- [ ] Client request to download file of size 33553921 bytes
+- [ ] Client request to upload file of size 0 bytes
+- [ ] Client request to upload file of size 100 bytes
+- [ ] Client request to upload file of size 512 bytes
+- [ ] Client request to upload file of size 513 bytes
+- [ ] Client request to upload file of size 33553920 bytes
+- [ ] Client request to upload file of size 33553921 bytes
 - [ ] Serving client who doesn't send ack all the times(ie retransmission scenario)
+- [ ] Client trying to download file that doesn't exist. Server should respond with error code 1.
+- [ ] Client trying to upload file that alrady exist. Server should respond with error code 6.
+- [ ] Client requests unknown unknown op code. Server should respod with error code 4.
+- [ ] Client trying to download or upload file from file path that is not allowd. Server should respond with error code 2.
+
