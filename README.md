@@ -3,7 +3,8 @@ cpptftp intends to create a tftp client and server application and libraries.
 Project is dependent on following libraries. This excludes libc, pthread
 ecosystem.
 1. boost::asio    : For asyncronous IO
-2. nlohmann-json  : For client application configuration parsing
+2. boost::test    : For unit tests
+3. nlohmann-json  : For client application configuration parsing
 3. m4tx/pyTFTP    : This tftp is used as remote server for Unit tests
 
 ## Compilation from source
@@ -11,8 +12,9 @@ Compilation needs at least 1vCPU and 2GB of RAM. That is t2.small or higher if y
 ### Dependencies
 Following libraries are required for compilation
 1. boost::asio    : For asyncronous IO
-2. nlohmann-json  : For client application configuration parsing
-Both of these libraries are needed only for compilation.
+2. boost::test    : For unit tests
+3. nlohmann-json  : For client application configuration parsing
+These are header only library and doesn't bring any runitme dependency.
 
 #### Arch Linux
 ```
