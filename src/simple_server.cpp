@@ -1,6 +1,7 @@
 #include <boost/asio.hpp>
 #include <iostream>
 #include <string>
+#include <unistd.h>
 
 #include "tftp_error_code.hpp"
 #include "tftp_server.hpp"
@@ -8,32 +9,40 @@
 void cb(tftp::error_code e) { std::cout << "Done error_code :" << e << std::endl; }
 
 int main(int argc, char **argv) {
-  (void)(argc);
-  (void)(argv);
+  int opt;
+  std::string ip, port, work_dir;
+  while ((opt = getopt(argc, argv, "H:P:W:h")) != -1) {
+    switch (opt) {
+    case 'H':
+      ip = std::string(optarg);
+      std::cout << "Host address :" << ip << std::endl;
+      break;
+    case 'P':
+      port = std::string(optarg);
+      std::cout << "Host Port :" << port << std::endl;
+      break;
+    case 'W':
+      work_dir = std::string(optarg);
+      std::cout << "Working directory :" << work_dir << std::endl;
+      break;
+    case '?':
+    default:
+      std::cout << "Usage :" << argv[0] << " -H <host address> -P <port number> -W <working directory>" << std::endl;
+      return -1;
+      break;
+    }
+  }
+  if (ip.empty() || port.empty() || work_dir.empty()) {
+    std::cout << "Invalid arguments. check " << argv[0] << " -h" << std::endl;
+    return -1;
+  }
+
   boost::asio::io_context io;
-  std::string ip("0.0.0.0");
-  std::string port("12345");
   udp::resolver resolver(io);
   udp::endpoint local_endpoint;
   local_endpoint = *resolver.resolve(udp::v4(), ip, port).begin();
-
-  /*udp::socket socket(io);
-  socket.open(udp::v4());
-  std::array<char, 1> send_buf  = {{ 0 }};
-  socket.async_send_to(boost::asio::buffer(send_buf), local_endpoint, cb);*/
-
-  tftp::distributor_s tftp_server = tftp::distributor::create(io, local_endpoint, "server_dir");
+  tftp::distributor_s tftp_server = tftp::distributor::create(io, local_endpoint, work_dir);
   tftp_server->start_service();
-
-  boost::asio::steady_timer timer(io, boost::asio::chrono::seconds(10));
-  timer.async_wait([&](const boost::system::error_code &) {
-    //std::cout << "Time up " << std::endl;
-    // tftp_server->stop_service();
-  });
-  // tftp_client->download_file("0010_file", "0010_file", cb);
-  // tftp_client->download_file("0100_file", "0100_file", cb);
-  // tftp_client->download_file("1000_file", "1000_file", cb);
-  // tftp_client->upload_file("simple_client", "simple_client", cb);
   io.run();
   return 0;
 }

@@ -12,35 +12,64 @@ void cb(const std::string &filename, tftp::error_code e) {
 }
 
 int main(int argc, char **argv) {
-  (void)(argc);
-  (void)(argv);
+  int opt;
+  std::string ip, port, work_dir, filename;
+  enum { Operation_upload, Operation_download, Operation_none } operation = Operation_none;
+  while ((opt = getopt(argc, argv, "H:P:W:D:U:h")) != -1) {
+    switch (opt) {
+    case 'H':
+      ip = std::string(optarg);
+      std::cout << "Host address :" << ip << std::endl;
+      break;
+    case 'P':
+      port = std::string(optarg);
+      std::cout << "Host Port :" << port << std::endl;
+      break;
+    case 'W':
+      work_dir = std::string(optarg);
+      std::cout << "Working directory :" << work_dir << std::endl;
+      break;
+    case 'U':
+      operation = Operation_upload;
+      filename = std::string(optarg);
+      break;
+    case 'D':
+      filename = std::string(optarg);
+      operation = Operation_download;
+      break;
+    case '?':
+    default:
+      std::cout << "Usage :" << argv[0] << " -H <server address> -P <port number> -W <working directory>" << std::endl;
+      return -1;
+      break;
+    }
+  }
+  if (ip.empty() || port.empty() || work_dir.empty() || filename.empty() || operation == Operation_none) {
+    std::cout << "Invalid arguments. check " << argv[0] << " -h" << std::endl;
+    return -1;
+  }
+
   boost::asio::io_context io;
-  std::string ip(argv[1]);
-  std::string port("12345");
   udp::resolver resolver(io);
   udp::endpoint remote_endpoint;
   remote_endpoint = *resolver.resolve(udp::v4(), ip, port).begin();
 
   tftp::client_s tftp_client = tftp::client::create(io, remote_endpoint);
-  std::string filename_base("sample_");
-  for (int i = 0; i < 32; i++) {
-    std::string filename = filename_base + std::to_string(i);
-    std::string local_filename = std::string("./client_dir/") + std::string("simple_client_") + filename;
-    tftp_client->download_file(filename, local_filename, [=](tftp::error_code error) {
-      std::cout << "Download status for " << filename << " status " << error << std::endl;
-      if (error != 0) {
-        std::cout << "Not reversing" << std::endl;
-        return;
-      }
-      tftp_client->upload_file(local_filename, local_filename, [=](tftp::error_code error) {
-        std::cout << "Reversed " << local_filename << " Status :" << error << std::endl;
-      });
+
+  switch (operation) {
+  case Operation_download:
+    std::cout << "Downloading file " << filename << std::endl;
+    tftp_client->download_file(filename, work_dir + "./" + filename, [=](tftp::error_code error) {
+      std::cout << "Download status : " << error << std::endl;
     });
+    break;
+  case Operation_upload:
+    tftp_client->upload_file(filename, work_dir + "./" + filename,
+                             [=](tftp::error_code error) { std::cout << "Upload status :" << error << std::endl; });
+    break;
+  default:
+    break;
   }
-  // tftp_client->download_file("0010_file", "0010_file", cb);
-  // tftp_client->download_file("0100_file", "0100_file", cb);
-  // tftp_client->download_file("1000_file", "1000_file", cb);
-  // tftp_client->upload_file("simple_client", "simple_client", cb);
   io.run();
   return 0;
 }

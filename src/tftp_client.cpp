@@ -165,8 +165,8 @@ client_uploader::client_uploader(boost::asio::io_context &io, const std::string 
 }
 
 void client_uploader::sender(const boost::system::error_code &error, const std::size_t bytes_received) {
-  std::cout << this->remote_tid << " [" << __func__ << ":" << __LINE__ << "] "
-            << " Stage :" << this->stage << std::endl;
+  // std::cout << this->remote_tid << " [" << __func__ << ":" << __LINE__ << "] "
+  //          << " Stage :" << this->stage << std::endl;
 
   this->update_stage(error, bytes_received);
   switch (this->stage) {
@@ -181,7 +181,7 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
     try {
       this->frame->parse_frame();
     } catch (framing_exception &e) {
-      std::cout << this->remote_tid << " [" << __func__ << "] Failed to parse response from " << std::endl;
+      // std::cout << this->remote_tid << " [" << __func__ << "] Failed to parse response from " << std::endl;
       this->callback(invalid_server_response);
       return;
     }
@@ -227,8 +227,8 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
 }
 
 void client_uploader::receiver(const boost::system::error_code &error, const std::size_t bytes_sent) {
-  std::cout << this->remote_tid << " [" << __func__ << ":" << __LINE__ << "] "
-            << " Stage :" << this->stage << std::endl;
+  // std::cout << this->remote_tid << " [" << __func__ << ":" << __LINE__ << "] "
+  //          << " Stage :" << this->stage << std::endl;
   this->update_stage(error, bytes_sent);
   switch (this->stage) {
   case client_uploader::wait_ack: {
