@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     case 'U':
       operation = Operation_upload;
       filename = std::string(optarg);
-      std::cout << "Operation \t\t:Upload\nFile :" << filename << std::endl;
+      std::cout << "Operation \t\t:Upload\nFile \t\t\t:" << filename << std::endl;
       break;
     case 'D':
       filename = std::string(optarg);
@@ -67,11 +67,12 @@ int main(int argc, char **argv) {
     break;
   case Operation_upload:
     tftp_client->upload_file(filename, work_dir + "./" + filename,
-                             [=](tftp::error_code error) { std::cout << "Upload status :" << error << std::endl; });
+                             [=](tftp::error_code error) { std::cout << "Upload status \t\t:" << error << std::endl; });
     break;
   default:
     break;
   }
   io.run();
+  std::cout << "-----------------------------------------------------" << std::endl;
   return 0;
 }

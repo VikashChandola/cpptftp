@@ -42,9 +42,9 @@ shared libraries. Refer implementation of simple_client and simple_server for th
 Compilation needs at least 1vCPU and 2GB of RAM. That is t2.small or higher if you speak in aws.
 ### Dependencies
 Following libraries are required for compilation
-1. boost::asio    : For asyncronous IO
+1. boost::asio    : For asynchronous IO
 2. boost::test    : For unit tests
-3. nlohmann-json  : For client application configuration parsing
+
 These are header only library and doesn't bring any runitme dependency.
 
 #### Arch Linux
@@ -55,7 +55,7 @@ These are header only library and doesn't bring any runitme dependency.
 ```
 $ sudo apt-get update
 $ sudo apt-get -y upgrade
-$ sudo apt-get -y install build-essential meson libboost-all-dev nlohmann-json3-dev
+$ sudo apt-get -y install build-essential meson libboost-all-dev
 ```
 
 ### compilation

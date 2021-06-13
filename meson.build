@@ -40,11 +40,11 @@ lib_tftpserver = library('tftpserver', sources : lib_tftpserver_src,
                          dependencies : [dep_pthread],
                          version : '0.0.1', soversion : '0')
 #----------------------------------------------------------------------------------------------------------------------
-
-bin_tftpclient_src = ['src/client.cpp','src/tftp_client.cpp', 'src/tftp_frame.cpp']
-bin_tftpclient = executable('tftp_client', sources : bin_tftpclient_src,
-                                include_directories :tftp_inc_dir,
-                                dependencies : [dep_pthread])
+#client is not relevant. Use simple_client instead.
+#bin_tftpclient_src = ['src/client.cpp','src/tftp_client.cpp', 'src/tftp_frame.cpp']
+#bin_tftpclient = executable('tftp_client', sources : bin_tftpclient_src,
+#                                include_directories :tftp_inc_dir,
+#                                dependencies : [dep_pthread])
 #----------------------------------------------------------------------------------------------------------------------
 
 simple_client_src = ['src/simple_client.cpp','src/tftp_client.cpp', 'src/tftp_frame.cpp']
