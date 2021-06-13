@@ -91,12 +91,33 @@ private:
   bool is_last_block = false;
 };
 
+/* `client` class is interface for user to execute tftp client related request. This class allows upload and
+ * download of file from remote tftp server. User will have to create one instance of this class per server
+ * connection. Usage
+ * 1. Create a shared_ptr<client> object
+ *      client_s = client::create(...);
+ * 2. Execute download_file or upload_file method to download or upload files. Both of these methods take
+ *    function object as last argument. This method gets called on completion of download/upload operation.
+ */
 class client : public std::enable_shared_from_this<client> {
 public:
+  /* Creates client_s object
+   * Argument
+   * io               :asio io context object
+   * remote_endpoint  :udp::endpoint object for tftp server. All downloads/uploads from this client will be executed on
+   *                   this endpoint
+   * Return : client_s object
+   */
   static client_s create(boost::asio::io_context &io, const udp::endpoint remote_endpoint) {
     return std::make_shared<client>(client(io, remote_endpoint));
   }
 
+  /* Downloads file from tftp server and writes to disk
+   * Argument
+   * remote_file_name   :file to be downloaded
+   * local_file_name    :downloaded file's name
+   * download_callback  :callback to be executed on completion of operation
+   */
   void download_file(const std::string &remote_file_name, std::string local_file_name,
                      client_completion_callback download_callback) {
     client_downloader::create(this->io, remote_file_name, this->remote_endpoint,
@@ -109,13 +130,18 @@ public:
                               download_callback);
   }
 
+  /* Reads file from disk and uploads to tftp server
+   * Argument
+   * remote_file_name   :file name to be used in request frame. This is the filename that server will see
+   * local_file_name    :file on disk that needs to be uploaded
+   * download_callback  :callback to be executed on completion of operation
+   */
   void upload_file(const std::string &remote_file_name, std::string local_file_name,
                    client_completion_callback upload_callback) {
     client_uploader::create(this->io, remote_file_name, this->remote_endpoint,
                             std::make_unique<std::ifstream>(local_file_name, std::ios::binary | std::ios::in),
                             upload_callback);
   }
-
   void upload_file(const std::string &remote_file_name, std::unique_ptr<std::istream> u_in_stream,
                    client_completion_callback upload_callback) {
     client_uploader::create(this->io, remote_file_name, this->remote_endpoint, std::move(u_in_stream), upload_callback);
@@ -133,7 +159,7 @@ private:
 
 #endif
 
-/* NOTES:
+/* LEARNING:
  * 1. update_stage method of client_[downloader|uploader] is not specific to sender or receiver. This is problematic
  *    because of stage update may also depend on what was the last thing that was done. Adding another argument to
  *    distiguish caller(sender or receiver) is not going to help either. That will be clubbing to two separate

@@ -106,8 +106,28 @@ private:
   std::ofstream write_stream;
 };
 
+/* `distributor` provides tftp server functionality. distributor usage
+ * 1. Create distributor_s object
+ *      distributor_s server = distributor::create(...)
+ * 2. Start listening for connections:
+ *      server->start_service()
+ *    start_service asynchronously start server. server will continue to run untill stopped.
+ * 3. Stop server
+ *      server->stop_service()
+ *    This call kills server. Currently running download/upload operations will continue to run but no new connections
+ *    will be accepted. distributor object will not hold io context object after stop.
+ * distributor object acts as a listener and start separate objects(download_server,upload_server) to perform the
+ * real operations.
+ */
 class distributor : public std::enable_shared_from_this<distributor> {
 public:
+  /* Creates distributor_s object
+   * Argument
+   * io               :asio io context object
+   * local_endpoint   :udp::endpoint on which server will listen for new connection
+   * work_dir         :working directory, All file operations will be done relative to this directory.
+   * Return : distributor_s object
+   */
   static distributor_s create(boost::asio::io_context &io, const udp::endpoint &local_endpoint, std::string work_dir);
 
   uint64_t stop_service();
