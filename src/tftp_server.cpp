@@ -389,7 +389,7 @@ distributor_s distributor::create(boost::asio::io_context &io, const udp::endpoi
 }
 
 uint64_t distributor::start_service() {
-  std::cout << "Starting distribution on :" << this->socket.local_endpoint() << std::endl;
+  std::cout << "Starting distribution on " << this->socket.local_endpoint() << std::endl;
   this->perform_distribution();
   return server_count;
 }

@@ -15,15 +15,15 @@ int main(int argc, char **argv) {
     switch (opt) {
     case 'H':
       ip = std::string(optarg);
-      std::cout << "Host address :" << ip << std::endl;
+      std::cout << "Host address \t\t:" << ip << std::endl;
       break;
     case 'P':
       port = std::string(optarg);
-      std::cout << "Host Port :" << port << std::endl;
+      std::cout << "Host Port \t\t:" << port << std::endl;
       break;
     case 'W':
       work_dir = std::string(optarg);
-      std::cout << "Working directory :" << work_dir << std::endl;
+      std::cout << "Working directory \t:" << work_dir << std::endl;
       break;
     case '?':
     default:

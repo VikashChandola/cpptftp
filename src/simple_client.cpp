@@ -19,27 +19,30 @@ int main(int argc, char **argv) {
     switch (opt) {
     case 'H':
       ip = std::string(optarg);
-      std::cout << "Host address :" << ip << std::endl;
+      std::cout << "TFTP Server address \t:" << ip << std::endl;
       break;
     case 'P':
       port = std::string(optarg);
-      std::cout << "Host Port :" << port << std::endl;
+      std::cout << "TFTP Server Port \t:" << port << std::endl;
       break;
     case 'W':
       work_dir = std::string(optarg);
-      std::cout << "Working directory :" << work_dir << std::endl;
+      std::cout << "Working directory \t:" << work_dir << std::endl;
       break;
     case 'U':
       operation = Operation_upload;
       filename = std::string(optarg);
+      std::cout << "Operation \t\t:Upload\nFile :" << filename << std::endl;
       break;
     case 'D':
       filename = std::string(optarg);
       operation = Operation_download;
+      std::cout << "Operation \t\t:Download\nFile \t\t\t:" << filename << std::endl;
       break;
     case '?':
     default:
-      std::cout << "Usage :" << argv[0] << " -H <server address> -P <port number> -W <working directory>" << std::endl;
+      std::cout << "Usage :" << argv[0]
+                << " -H <server address> -P <port number> -W <working directory> [-D|-U] <filename>" << std::endl;
       return -1;
       break;
     }
@@ -58,9 +61,8 @@ int main(int argc, char **argv) {
 
   switch (operation) {
   case Operation_download:
-    std::cout << "Downloading file " << filename << std::endl;
     tftp_client->download_file(filename, work_dir + "/" + filename, [=](tftp::error_code error) {
-      std::cout << "Download status : " << error << std::endl;
+      std::cout << "Download status \t: " << error << std::endl;
     });
     break;
   case Operation_upload:
