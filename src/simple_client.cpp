@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
   switch (operation) {
   case Operation_download:
     std::cout << "Downloading file " << filename << std::endl;
-    tftp_client->download_file(filename, work_dir + "./" + filename, [=](tftp::error_code error) {
+    tftp_client->download_file(filename, work_dir + "/" + filename, [=](tftp::error_code error) {
       std::cout << "Download status : " << error << std::endl;
     });
     break;
