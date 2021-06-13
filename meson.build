@@ -31,11 +31,6 @@ lib_tftpclient = library('tftpclient', sources : lib_tftpclient_src,
                          dependencies : [dep_pthread],
                          version : '0.0.1', soversion : '0')
 
-tftpclient_test_src = ['test/tftp_client.cpp']
-tftpclient_test_exec = executable('tftp_client_test', sources :tftpclient_test_src, 
-                            include_directories :tftp_inc_dir,
-                            link_with :[lib_tftpclient],
-                            dependencies : [dep_pthread])
 #----------------------------------------------------------------------------------------------------------------------
 
 lib_tftpserver_src = ['src/tftp_server.cpp']
