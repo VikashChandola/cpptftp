@@ -17,7 +17,6 @@ using namespace tftp;
 
 //-----------------------------------------------------------------------------
 
-
 //-----------------------------------------------------------------------------
 
 base_client::base_client(boost::asio::io_context &io, const client_config &config)
@@ -31,11 +30,11 @@ base_client::base_client(boost::asio::io_context &io, const client_config &confi
       socket(io),
       timer(io),
       block_number(0),
-      client_stage(client_constructed) { }
+      client_stage(client_constructed) {}
 
-base_client::~base_client(){
+base_client::~base_client() {
   this->socket.close();
-  //Better check if timer has anything waiting on it, Then only cancel
+  // Better check if timer has anything waiting on it, Then only cancel
   this->timer.cancel();
   this->file_handle.close();
 }
@@ -46,12 +45,11 @@ void base_client::exit(tftp::error_code e) {
 }
 
 void base_client::start() {
-  if(this->client_stage != client_constructed){
+  if (this->client_stage != client_constructed) {
     return;
   }
   this->client_stage = client_running;
 }
-
 
 void base_client::stop() {
   this->socket.cancel();
@@ -61,16 +59,18 @@ void base_client::stop() {
 //-----------------------------------------------------------------------------
 
 download_client::download_client(boost::asio::io_context &io, const download_client_config &config)
-    : base_client(io, config), download_stage(dc_request_data), is_last_block(false), is_file_open(false)
-{ }
+    : base_client(io, config),
+      download_stage(dc_request_data),
+      is_last_block(false),
+      is_file_open(false) {}
 
 download_client_s download_client::create(boost::asio::io_context &io, const download_client_config &config) {
   download_client_s self(new download_client(io, config));
   return self;
 }
 
-void download_client::start(){
-  if(this->client_stage != client_constructed){
+void download_client::start() {
+  if (this->client_stage != client_constructed) {
     base_client::start();
     this->download_stage = dc_request_data;
     this->sender();
@@ -82,29 +82,34 @@ void download_client::stop() {
   this->download_stage = dc_abort;
 }
 
-void download_client::sender() {
-}
+void download_client::sender() {}
 
 void download_client::sender_cb(const boost::system::error_code &error, const std::size_t bytes_sent) {
   (void)(error);
   (void)(bytes_sent);
 }
 
-void download_client::receiver() {
-}
+void download_client::receiver() {}
 
-void download_client::receiver_cb(const boost::system::error_code &error, const std::size_t bytes_received){
+void download_client::receiver_cb(const boost::system::error_code &error, const std::size_t bytes_received) {
   (void)(error);
   (void)(bytes_received);
 }
 
 //-----------------------------------------------------------------------------
 
-client_uploader::client_uploader(boost::asio::io_context &io, const std::string &file_name,
-                                 const udp::endpoint &remote_endpoint, std::unique_ptr<std::istream> u_in_stream,
+client_uploader::client_uploader(boost::asio::io_context &io,
+                                 const std::string &file_name,
+                                 const udp::endpoint &remote_endpoint,
+                                 std::unique_ptr<std::istream> u_in_stream,
                                  client_completion_callback upload_callback)
-    : socket(io), remote_tid(remote_endpoint), file_name(file_name), u_in(std::move(u_in_stream)),
-      callback(upload_callback), exec_error(0), block_number(0) {
+    : socket(io),
+      remote_tid(remote_endpoint),
+      file_name(file_name),
+      u_in(std::move(u_in_stream)),
+      callback(upload_callback),
+      exec_error(0),
+      block_number(0) {
   socket.open(udp::v4());
   stage = init;
 }
@@ -117,9 +122,12 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
   switch (this->stage) {
   case client_uploader::upload_request: {
     this->frame = frame::create_write_request_frame(this->file_name);
-    this->socket.async_send_to(
-        this->frame->get_asio_buffer(), this->remote_tid,
-        std::bind(&client_uploader::receiver, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+    this->socket.async_send_to(this->frame->get_asio_buffer(),
+                               this->remote_tid,
+                               std::bind(&client_uploader::receiver,
+                                         shared_from_this(),
+                                         std::placeholders::_1,
+                                         std::placeholders::_2));
     break;
   }
   case client_uploader::upload_data: {
@@ -155,9 +163,12 @@ void client_uploader::sender(const boost::system::error_code &error, const std::
       this->is_last_block = true;
     }
     this->frame = frame::create_data_frame(data_vector.cbegin(), data_vector.cend(), this->block_number);
-    this->socket.async_send_to(
-        this->frame->get_asio_buffer(), this->remote_tid,
-        std::bind(&client_uploader::receiver, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+    this->socket.async_send_to(this->frame->get_asio_buffer(),
+                               this->remote_tid,
+                               std::bind(&client_uploader::receiver,
+                                         shared_from_this(),
+                                         std::placeholders::_1,
+                                         std::placeholders::_2));
     break;
   }
   case client_uploader::exit: {
@@ -178,9 +189,12 @@ void client_uploader::receiver(const boost::system::error_code &error, const std
   switch (this->stage) {
   case client_uploader::wait_ack: {
     this->frame = frame::create_empty_frame();
-    this->socket.async_receive_from(
-        this->frame->get_asio_buffer(), this->remote_tid,
-        std::bind(&client_uploader::sender, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
+    this->socket.async_receive_from(this->frame->get_asio_buffer(),
+                                    this->remote_tid,
+                                    std::bind(&client_uploader::sender,
+                                              shared_from_this(),
+                                              std::placeholders::_1,
+                                              std::placeholders::_2));
     break;
   }
   case client_uploader::exit: {
@@ -195,7 +209,8 @@ void client_uploader::receiver(const boost::system::error_code &error, const std
   }
 }
 
-void client_uploader::update_stage(const boost::system::error_code &error, const std::size_t bytes_transacted) {
+void client_uploader::update_stage(const boost::system::error_code &error,
+                                   const std::size_t bytes_transacted) {
   // TODO: Add necessary changes for errornous case
   (void)(error);
   (void)(bytes_transacted);
