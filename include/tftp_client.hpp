@@ -38,14 +38,12 @@ class client_config {
 public:
   client_config(
       const udp::endpoint &remote_endpoint,
-      const std::string &work_dir,
       const std::string &remote_file_name,
       const std::string &local_file_name,
       client_completion_callback callback,
       const boost::asio::chrono::duration<uint64_t, std::milli> network_timeout = default_network_timeout,
       const uint16_t retry_count                                                = default_retry_count)
       : remote_endpoint(remote_endpoint),
-        work_dir(work_dir),
         remote_file_name(remote_file_name),
         local_file_name(local_file_name),
         callback(callback),
@@ -53,7 +51,6 @@ public:
         retry_count(retry_count) {}
 
   const udp::endpoint remote_endpoint;
-  const std::string work_dir;
   const std::string remote_file_name;
   const std::string local_file_name;
   client_completion_callback callback;
@@ -81,7 +78,6 @@ protected:
   virtual void exit(tftp::error_code e);
 
   const udp::endpoint server_endpoint;
-  const std::string work_dir;
   const std::string remote_file_name;
   const std::string local_file_name;
   client_completion_callback callback;
@@ -115,7 +111,7 @@ private:
   template <typename T>
   bool write(T itr, const T &itr_end) noexcept {
     if (!this->is_file_open) {
-      this->file_handle  = std::fstream(this->work_dir + this->local_file_name, std::ios::out);
+      this->file_handle  = std::fstream(this->local_file_name, std::ios::out);
       this->is_file_open = true;
     }
     if (!this->file_handle.is_open()) {
@@ -205,9 +201,8 @@ public:
                      const std::string &local_file_name,
                      client_completion_callback download_callback) {
     download_client_config config(this->remote_endpoint,
-                                  this->work_dir,
                                   remote_file_name,
-                                  local_file_name,
+                                  this->work_dir + local_file_name,
                                   download_callback);
     auto worker = download_client::create(this->io, config);
     worker->start();

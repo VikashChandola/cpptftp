@@ -8,6 +8,7 @@
 
 #include <boost/asio.hpp>
 
+#include "log.hpp"
 #include "tftp_client.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_exception.hpp"
@@ -21,7 +22,6 @@ using namespace tftp;
 
 base_client::base_client(boost::asio::io_context &io, const client_config &config)
     : server_endpoint(config.remote_endpoint),
-      work_dir(config.work_dir),
       remote_file_name(config.remote_file_name),
       local_file_name(config.local_file_name),
       callback(config.callback),
@@ -62,7 +62,11 @@ download_client::download_client(boost::asio::io_context &io, const download_cli
     : base_client(io, config),
       download_stage(dc_request_data),
       is_last_block(false),
-      is_file_open(false) {}
+      is_file_open(false) {
+  DEBUG("Setting up download for remote file [%s] to local file [%s]",
+        this->remote_file_name.c_str(),
+        this->local_file_name.c_str());
+}
 
 download_client_s download_client::create(boost::asio::io_context &io, const download_client_config &config) {
   download_client_s self(new download_client(io, config));

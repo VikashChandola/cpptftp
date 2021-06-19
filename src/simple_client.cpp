@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 
+#include "log.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
 
@@ -31,18 +32,19 @@ int main(int argc, char **argv) {
       break;
     case 'U':
       operation = Operation_upload;
-      filename = std::string(optarg);
+      filename  = std::string(optarg);
       std::cout << "Operation \t\t:Upload\nFile \t\t\t:" << filename << std::endl;
       break;
     case 'D':
-      filename = std::string(optarg);
+      filename  = std::string(optarg);
       operation = Operation_download;
       std::cout << "Operation \t\t:Download\nFile \t\t\t:" << filename << std::endl;
       break;
     case '?':
     default:
       std::cout << "Usage :" << argv[0]
-                << " -H <server address> -P <port number> -W <working directory> [-D|-U] <filename>" << std::endl;
+                << " -H <server address> -P <port number> -W <working directory> [-D|-U] <filename>"
+                << std::endl;
       return -1;
       break;
     }
@@ -52,10 +54,11 @@ int main(int argc, char **argv) {
     return -1;
   }
 
+  openlog(NULL, LOG_PID | LOG_PERROR, LOG_USER);
   boost::asio::io_context io;
   udp::resolver resolver(io);
   udp::endpoint remote_endpoint;
-  remote_endpoint = *resolver.resolve(udp::v4(), ip, port).begin();
+  remote_endpoint            = *resolver.resolve(udp::v4(), ip, port).begin();
 
   tftp::client_s tftp_client = tftp::client::create(io, remote_endpoint);
 
@@ -66,8 +69,9 @@ int main(int argc, char **argv) {
     });
     break;
   case Operation_upload:
-    tftp_client->upload_file(filename, work_dir + "./" + filename,
-                             [=](tftp::error_code error) { std::cout << "Upload status \t\t:" << error << std::endl; });
+    tftp_client->upload_file(filename, work_dir + "./" + filename, [=](tftp::error_code error) {
+      std::cout << "Upload status \t\t:" << error << std::endl;
+    });
     break;
   default:
     break;
