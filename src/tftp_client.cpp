@@ -15,142 +15,87 @@
 using boost::asio::ip::udp;
 using namespace tftp;
 
-client_downloader::client_downloader(boost::asio::io_context &io, const std::string &file_name,
-                                     const udp::endpoint &remote_endpoint, std::unique_ptr<std::ostream> u_out_stream,
-                                     client_completion_callback download_callback)
-    : socket(io), remote_tid(remote_endpoint), file_name(file_name), u_out(std::move(u_out_stream)),
-      callback(download_callback), exec_error(0), timer(io), timeout(boost::asio::chrono::seconds(1)) {
-  socket.open(udp::v4());
-  stage = init;
+//-----------------------------------------------------------------------------
+
+
+//-----------------------------------------------------------------------------
+
+base_client::base_client(boost::asio::io_context &io, const client_config &config)
+    : server_endpoint(config.remote_endpoint),
+      work_dir(config.work_dir),
+      remote_file_name(config.remote_file_name),
+      local_file_name(config.local_file_name),
+      callback(config.callback),
+      timeout(config.network_timeout),
+      retry_count(config.retry_count),
+      socket(io),
+      timer(io),
+      block_number(0),
+      client_stage(client_constructed) { }
+
+base_client::~base_client(){
+  this->socket.close();
+  //Better check if timer has anything waiting on it, Then only cancel
+  this->timer.cancel();
+  this->file_handle.close();
 }
 
-client_downloader_s client_downloader::create(boost::asio::io_context &io, const std::string &file_name,
-                                              const udp::endpoint &remote_endpoint,
-                                              std::unique_ptr<std::ostream> u_out_stream,
-                                              client_completion_callback download_callback) {
-  client_downloader_s self(
-      new client_downloader(io, file_name, remote_endpoint, std::move(u_out_stream), download_callback));
-  self->sender(boost::system::error_code(), 0);
+void base_client::exit(tftp::error_code e) {
+  this->file_handle.flush();
+  this->callback(e);
+}
+
+void base_client::start() {
+  if(this->client_stage != client_constructed){
+    return;
+  }
+  this->client_stage = client_running;
+}
+
+
+void base_client::stop() {
+  this->socket.cancel();
+  this->client_stage = client_aborted;
+}
+
+//-----------------------------------------------------------------------------
+
+download_client::download_client(boost::asio::io_context &io, const download_client_config &config)
+    : base_client(io, config), download_stage(dc_request_data), is_last_block(false), is_file_open(false)
+{ }
+
+download_client_s download_client::create(boost::asio::io_context &io, const download_client_config &config) {
+  download_client_s self(new download_client(io, config));
   return self;
 }
 
-void client_downloader::sender(const boost::system::error_code &error, const std::size_t bytes_received) {
-  if (error == boost::asio::error::operation_aborted) {
-    return;
-  }
-  this->timer.cancel();
-  this->update_stage(error, bytes_received);
-  switch (this->stage) {
-  case client_downloader::request_data: {
-    this->frame = frame::create_read_request_frame(this->file_name);
-    this->socket.async_send_to(
-        this->frame->get_asio_buffer(), this->remote_tid,
-        std::bind(&client_downloader::receiver, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
-    break;
-  }
-  case client_downloader::send_ack: {
-    this->frame->resize(bytes_received);
-    try {
-      this->frame->parse_frame();
-    } catch (framing_exception &e) {
-      this->callback(invalid_server_response);
-    }
-    switch (this->frame->get_op_code()) {
-    case frame::op_error:
-      std::cerr << "Server responded with error :" << this->frame->get_error_message() << std::endl;
-      this->callback(frame->get_error_code());
-      return;
-      break;
-    case frame::op_data:
-      break;
-    default:
-      std::cerr << "Expected data frame received received frame with op code :" << this->frame->get_op_code()
-                << std::endl;
-      this->callback(invalid_server_response);
-      return;
-      break;
-    }
-    auto itr_pair = this->frame->get_data_iterator();
-    auto itr = itr_pair.first;
-    auto itr_end = itr_pair.second;
-    while (itr != itr_end) {
-      (*this->u_out) << *itr;
-      itr++;
-    }
-    this->frame = frame::create_ack_frame(this->frame->get_block_number());
-    this->socket.async_send_to(
-        this->frame->get_asio_buffer(), this->remote_tid,
-        std::bind(&client_downloader::receiver, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
-    break;
-  }
-  default:
-    break;
+void download_client::start(){
+  if(this->client_stage != client_constructed){
+    base_client::start();
+    this->download_stage = dc_request_data;
+    this->sender();
   }
 }
 
-void client_downloader::receiver(const boost::system::error_code &error, const std::size_t bytes_sent) {
-  if (error == boost::asio::error::operation_aborted) {
-    return;
-  }
-  this->update_stage(error, bytes_sent);
-  switch (this->stage) {
-  case client_downloader::receive_data: {
-    this->frame = frame::create_empty_frame();
-    this->socket.async_receive_from(
-        this->frame->get_asio_buffer(), this->remote_tid,
-        std::bind(&client_downloader::sender, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
-    this->timer.expires_after(this->timeout);
-    this->timer.async_wait([&](const boost::system::error_code error) {
-      if (error == boost::asio::error::operation_aborted) {
-        return;
-      }
-      this->socket.cancel();
-      this->callback(receive_timeout);
-    });
-    break;
-  }
-  case client_downloader::exit: {
-    this->u_out->flush();
-    this->callback(this->exec_error);
-  }
-  default: {
-    break;
-  }
-  }
+void download_client::stop() {
+  base_client::stop();
+  this->download_stage = dc_abort;
 }
 
-void client_downloader::update_stage(const boost::system::error_code &error, const std::size_t bytes_transacted) {
-  // TODO: Add necessary changes for errornous case
+void download_client::sender() {
+}
+
+void download_client::sender_cb(const boost::system::error_code &error, const std::size_t bytes_sent) {
   (void)(error);
-  switch (this->stage) {
-  case client_downloader::init: {
-    this->stage = client_downloader::request_data;
-    break;
-  }
-  case client_downloader::request_data: {
-    this->stage = client_downloader::receive_data;
-    break;
-  }
-  case client_downloader::receive_data: {
-    if (bytes_transacted != 516) {
-      is_last_block = true;
-    }
-    this->stage = client_downloader::send_ack;
-    break;
-  }
-  case client_downloader::send_ack: {
-    if (is_last_block) {
-      this->stage = client_downloader::exit;
-    } else {
-      this->stage = client_downloader::receive_data;
-    }
-    break;
-  }
-  case client_downloader::exit:
-  default: {
-    break;
-  }
-  }
+  (void)(bytes_sent);
+}
+
+void download_client::receiver() {
+}
+
+void download_client::receiver_cb(const boost::system::error_code &error, const std::size_t bytes_received){
+  (void)(error);
+  (void)(bytes_received);
 }
 
 //-----------------------------------------------------------------------------
