@@ -37,18 +37,10 @@ base_client::base_client(boost::asio::io_context &io, const client_config &confi
 
 base_client::~base_client() {}
 
-void base_client::exit(error_code e) {
-  this->timer.cancel();
-  this->socket.close();
-  this->file_handle.close();
-  this->callback(e);
-}
-
 //-----------------------------------------------------------------------------
 
 download_client::download_client(boost::asio::io_context &io, const download_client_config &config)
     : base_client(io, config),
-      download_stage(dc_request_data),
       is_last_block(false),
       is_file_open(false) {
   DEBUG("Setting up client to download remote file [%s] from [%s] to [%s]",
@@ -58,7 +50,8 @@ download_client::download_client(boost::asio::io_context &io, const download_cli
   if (this->server_tid.port() != 0 && this->receive_tid.port() != 0) {
     /* server_tid and receive_tid must be initialized with 0 by default constructors otherwise it won't be
      * possible to verify remote endpoint(refer receiver_cb method). Current constructors of asio initialize
-     * with port as 0.
+     * with port as 0. This assert is to ensure that any future change in default constructor gets identified
+     * quickly.
      */
     ERROR("server tids are not zero. client can not function");
     exit(1);
@@ -71,65 +64,68 @@ download_client_s download_client::create(boost::asio::io_context &io, const dow
 }
 
 void download_client::start() {
-  if (this->client_stage == client_constructed) {
-    this->client_stage   = client_running;
-    this->download_stage = dc_request_data;
-    this->sender();
-    DEBUG("Downloading file [%s]", this->local_file_name.c_str());
-  } else {
-    DEBUG("download has alraedy started.");
+  if (this->client_stage != client_constructed) {
+    NOTICE("Start request rejected. Start can only be requested for freshly constructed objects.");
+    return;
   }
+  this->client_stage = client_running;
+  DEBUG("Downloading file %s from server hosted at %s",
+        this->local_file_name.c_str(),
+        to_string(this->server_endpoint).c_str());
+  this->send_request();
 }
 
 void download_client::abort() {
-  this->client_stage   = client_aborted;
-  this->download_stage = dc_abort;
+  if (this->client_stage != client_running) {
+    DEBUG("Abort request reject. Only running client can aborted.");
+    return;
+  }
+  this->client_stage = client_aborted;
   this->socket.cancel();
 }
 
 void download_client::exit(error_code e) {
-  this->download_stage = dc_complete;
-  base_client::exit(e);
+  if (this->client_stage != client_completed) {
+    this->client_stage = client_completed;
+  } else {
+    ERROR("Exit rejected. There can be only one exit");
+    return;
+  }
+  this->callback(e);
 }
 
-void download_client::sender() {
-  mark;
-  switch (this->download_stage) {
-  case dc_request_data: {
-    this->frame = frame::create_read_request_frame(this->remote_file_name);
-    this->socket.async_send_to(this->frame->get_asio_buffer(),
-                               this->server_endpoint,
-                               std::bind(&download_client::sender_cb,
-                                         shared_from_this(),
-                                         std::placeholders::_1,
-                                         std::placeholders::_2));
-    return;
-  }
-  case dc_send_ack: {
-    this->frame = frame::create_ack_frame(this->block_number);
-    this->socket.async_send_to(this->frame->get_asio_buffer(),
-                               this->server_tid,
-                               std::bind(&download_client::sender_cb,
-                                         shared_from_this(),
-                                         std::placeholders::_1,
-                                         std::placeholders::_2));
-    return;
-  }
-    return;
-  case dc_receive_data:
-  case dc_complete:
-    break;
-  case dc_abort:
-    this->sender_cb(boost::system::error_code(), 0);
-    return;
-  }
-  ERROR("FATAL ERROR: download client state machine reached invalid stage");
-  this->exit(error::state_machine_broke);
+void download_client::send_request() {
+  this->frame = frame::create_read_request_frame(this->remote_file_name);
+  this->socket.async_send_to(this->frame->get_asio_buffer(),
+                             this->server_endpoint,
+                             std::bind(&download_client::send_request_cb,
+                                       shared_from_this(),
+                                       std::placeholders::_1,
+                                       std::placeholders::_2));
 }
 
-void download_client::sender_cb(const boost::system::error_code &error, const std::size_t bytes_sent) {
+void download_client::send_request_cb(const boost::system::error_code &error, const std::size_t bytes_sent) {
   (void)(bytes_sent);
-  mark;
+  if (error) {
+    ERROR("%s[%d] send failed Error :%s", __func__, __LINE__, to_string(error).c_str());
+    this->exit(error::boost_asio_error_base + error.value());
+  } else {
+    this->receive_data();
+  }
+}
+
+void download_client::send_ack() {
+  this->frame = frame::create_ack_frame(this->block_number);
+  this->socket.async_send_to(this->frame->get_asio_buffer(),
+                             this->server_tid,
+                             std::bind(&download_client::send_ack_cb,
+                                       shared_from_this(),
+                                       std::placeholders::_1,
+                                       std::placeholders::_2));
+}
+
+void download_client::send_ack_cb(const boost::system::error_code &error, const std::size_t bytes_sent) {
+  (void)(bytes_sent);
   if (error) {
     ERROR("%s[%d] Received unrecoverable error [%s]",
           __func__,
@@ -138,136 +134,105 @@ void download_client::sender_cb(const boost::system::error_code &error, const st
     this->exit(error::boost_asio_error_base + error.value());
     return;
   }
-  switch (this->download_stage) {
-  case dc_request_data: {
-    this->download_stage = dc_receive_data;
-    this->receiver();
-    return;
-  }
-  case dc_send_ack: {
-    if (this->is_last_block) {
-      this->download_stage = dc_complete;
-      this->client_stage   = client_completed;
-      // This is the only valid good exit.
-      this->exit(error::no_error);
-      return;
-    }
-    this->download_stage = dc_receive_data;
-    this->receiver();
-    return;
-  }
-  case dc_abort: {
-    this->abort();
-    this->exit(error::connection_aborted);
-    return;
-  }
-  case dc_complete:
-  case dc_receive_data:
-    break;
-  }
-  ERROR("FATAL ERROR: download client state machine reached invalid stage");
-  this->exit(error::state_machine_broke);
-}
-
-void download_client::receiver() {
-  switch (this->download_stage) {
-  case dc_receive_data:
-    this->frame = frame::create_empty_frame();
-    this->socket.async_receive_from(this->frame->get_asio_buffer(),
-                                    this->receive_tid,
-                                    std::bind(&download_client::receiver_cb,
-                                              shared_from_this(),
-                                              std::placeholders::_1,
-                                              std::placeholders::_2));
-    this->timer.expires_after(this->timeout);
-    this->timer.async_wait([&](const boost::system::error_code &error) {
-      if (error == boost::asio::error::operation_aborted) {
-        return;
-      }
-      this->socket.cancel();
-    });
-    return;
-  case dc_request_data:
-  case dc_send_ack:
-    break;
-  case dc_abort:
-  case dc_complete:
-    this->receiver_cb(boost::system::error_code(), 0);
-    return;
-  }
-  ERROR("FATAL ERROR: download client state machine reached invalid stage");
-  this->exit(error::state_machine_broke);
-}
-
-void download_client::re_send(const error_code &current_error) {
-  this->retry_count += 1;
-  if (this->retry_count >= this->max_retry_count) {
-    this->exit(current_error);
-  } else {
-    this->sender();
-  }
-}
-
-void download_client::re_receive(const error_code &current_error) {
-  this->retry_count += 1;
-  if (this->retry_count >= this->max_retry_count) {
-    this->exit(current_error);
-  } else {
-    this->receiver();
-  }
-}
-
-void download_client::receiver_cb(const boost::system::error_code &error, const std::size_t bytes_received) {
-  (void)(bytes_received);
-  bool timed_out = false;
-  this->timer.cancel();
-  if (error == boost::asio::error::operation_aborted) {
-    timed_out = true;
-  } else if (error) {
-    ERROR("%s[%d] Received unrecoverable error [%s]",
-          __func__,
-          __LINE__,
-          base_client::to_string(error).c_str());
-    this->exit(error::boost_asio_error_base + error.value());
-    return;
-  }
-  switch (this->download_stage) {
-  case dc_receive_data: {
-    if (timed_out) {
-      WARN("Connection to %s timed out while waiting for response", to_string(this->receive_tid).c_str());
-      // Probably last packet didn't reach upto server
-      this->download_stage = dc_send_ack;
-      this->re_send(error::receive_timeout);
-      return;
-    }
-    // Is remote point same as it was previously, If not is_server_endpoint_good have taken care of next steps
-    if (!this->is_server_endpoint_good()) {
-      return;
-    }
-    // Is frame proper. If it's not is_frame_type_data have taken care of next steps
-    this->frame->resize(bytes_received);
-    if (!this->is_frame_type_data()) {
-      return;
-    }
-    // parse whatever we have received from server and update local file and block number accordingly
-    if (!parse_received_data()) {
-      return;
-    }
-    this->download_stage = dc_send_ack;
-    this->sender();
-    return;
-  }
-  case dc_complete:
-  case dc_abort:
-    this->client_stage = client_aborted;
+  if (this->is_last_block) {
     this->exit(error::no_error);
-    return;
-  case dc_send_ack:
-  case dc_request_data:
-    break;
+  } else {
+    this->receive_data();
   }
-  ERROR("FATAL ERROR: download client state machine reached invalid stage");
-  this->exit(error::state_machine_broke);
+}
+
+void download_client::receive_data() {
+  this->frame = frame::create_empty_frame();
+  this->socket.async_receive_from(this->frame->get_asio_buffer(),
+                                  this->receive_tid,
+                                  std::bind(&download_client::receive_data_cb,
+                                            shared_from_this(),
+                                            std::placeholders::_1,
+                                            std::placeholders::_2));
+  this->timer.expires_after(this->timeout);
+  this->timer.async_wait([&](const boost::system::error_code &e) {
+    if (e == boost::asio::error::operation_aborted) {
+      return;
+    }
+    this->socket.cancel();
+  });
+}
+
+void download_client::receive_data_cb(const boost::system::error_code &error,
+                                      const std::size_t bytes_received) {
+  if (error == boost::asio::error::operation_aborted) {
+    if (this->client_stage == client_aborted) {
+      // Abort is happening because of user request
+      this->exit(error::boost_asio_error_base + error.value());
+      return;
+    }
+    WARN("Timed out while waiting for response on %s", to_string(this->socket.local_endpoint()).c_str());
+    this->re_send(error::receive_timeout);
+    return;
+  }
+  if (this->server_tid.port() == 0) {
+    this->server_tid = this->receive_tid;
+  } else if (this->server_tid != this->receive_tid) {
+    WARN("Expecting data from %s but received from %s",
+         to_string(this->server_tid).c_str(),
+         to_string(this->receive_tid).c_str());
+    this->re_receive(error::invalid_server_response);
+    return;
+  }
+  std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> itr_pair;
+  try {
+    this->frame->resize(bytes_received);
+    this->frame->parse_frame();
+    itr_pair = this->frame->get_data_iterator();
+  } catch (framing_exception &e) {
+    WARN("Failed to parse response from %s", to_string(this->receive_tid).c_str());
+    this->re_send(error::invalid_server_response);
+    return;
+  }
+  if (this->block_number + 1 != this->frame->get_block_number()) {
+    WARN("Expected blocks number %u got %u", this->block_number + 1, this->frame->get_block_number());
+  }
+  this->block_number = this->frame->get_block_number();
+  if (!this->write(itr_pair.first, itr_pair.second)) {
+    // Failed to write to file. Fatal error
+    ERROR("IO Error on file %s. Aborting download", this->local_file_name.c_str());
+    this->exit(error::disk_io_error);
+    return;
+  }
+  if (itr_pair.second - itr_pair.first != this->window_size) {
+    this->is_last_block = true;
+  }
+  this->send_ack();
+}
+
+void download_client::exec_last_send() {
+  if (this->last_send == request_frame) {
+    this->send_request();
+  } else if (this->last_send == ack_frame) {
+    this->send_ack();
+  }
+}
+
+void download_client::re_send(const error_code &e) {
+  this->retry_count++;
+  if (this->retry_count >= this->max_retry_count) {
+    this->exit(e);
+    return;
+  } else {
+    // Do this through post
+    this->exec_last_send();
+  }
+}
+
+void download_client::re_receive(const error_code &e) {
+  this->retry_count++;
+  if (this->retry_count >= this->max_retry_count) {
+    this->exit(e);
+    return;
+  } else {
+    // Do this through post
+    this->receive_data();
+  }
 }
 
 //-----------------------------------------------------------------------------

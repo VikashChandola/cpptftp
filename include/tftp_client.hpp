@@ -79,11 +79,7 @@ protected:
   }
 
   base_client(boost::asio::io_context &io, const client_config &config);
-  virtual void sender()                                                                              = 0;
-  virtual void sender_cb(const boost::system::error_code &error, const std::size_t bytes_sent)       = 0;
-  virtual void receiver()                                                                            = 0;
-  virtual void receiver_cb(const boost::system::error_code &error, const std::size_t bytes_received) = 0;
-  virtual void exit(error_code e);
+  virtual void exit(error_code e) = 0;
 
   const udp::endpoint server_endpoint;
   const std::string remote_file_name;
@@ -113,68 +109,17 @@ public:
 
 private:
   download_client(boost::asio::io_context &io, const download_client_config &config);
-  void sender();
-  void sender_cb(const boost::system::error_code &error, const std::size_t bytes_sent);
-  void receiver();
-  void receiver_cb(const boost::system::error_code &error, const std::size_t bytes_received);
+  void send_request();
+  void send_request_cb(const boost::system::error_code &error, const std::size_t bytes_sent);
+  void send_ack();
+  void send_ack_cb(const boost::system::error_code &error, const std::size_t bytes_sent);
+  void receive_data();
+  void receive_data_cb(const boost::system::error_code &error, const std::size_t bytes_received);
   void exit(error_code e);
 
-  void re_send(const error_code &current_error);
-  void re_receive(const error_code &current_error);
-
-  bool is_server_endpoint_good() {
-    if (this->server_tid.port() == 0) {
-      this->server_tid = this->receive_tid;
-    } else if (this->server_tid != this->receive_tid) {
-      WARN("Expecting data from %s but received from %s",
-           to_string(this->server_tid).c_str(),
-           to_string(this->receive_tid).c_str());
-      this->re_receive(error::network_interference);
-      return false;
-    }
-    return true;
-  }
-
-  bool is_frame_type_data() {
-    try {
-      this->frame->parse_frame();
-    } catch (framing_exception &e) {
-      WARN("Failed to parse frame received from [%s]", to_string(this->receive_tid).c_str());
-      this->re_receive(error::invalid_server_response);
-      return false;
-    }
-    // Is op code proper
-    switch (this->frame->get_op_code()) {
-    case frame::op_data:
-      return true;
-    case frame::op_error:
-      this->exit(this->frame->get_error_code());
-      return false;
-    default:
-      this->re_receive(error::invalid_server_response);
-      return false;
-    }
-  }
-
-  bool parse_received_data() {
-    auto data_pair = this->frame->get_data_iterator();
-    if (!this->write(data_pair.first, data_pair.second)) {
-      ERROR("IO Error on file %s. Aborting", this->local_file_name.c_str());
-      this->exit(error::disk_io_error);
-      return false;
-    }
-    this->retry_count = 0;
-    if (this->block_number + 1 != this->frame->get_block_number()) {
-      WARN("Got block number increment by %d. Possible data loss",
-           (this->frame->get_block_number() - this->block_number));
-    }
-    this->block_number = this->frame->get_block_number();
-    DEBUG("received %u bytes", static_cast<uint16_t>(data_pair.second - data_pair.first));
-    if (data_pair.second - data_pair.first != this->window_size) {
-      this->is_last_block = true;
-    }
-    return true;
-  }
+  void exec_last_send();
+  void re_send(const error_code &e);
+  void re_receive(const error_code &e);
 
   template <typename T>
   bool write(T itr, const T &itr_end) noexcept {
@@ -193,7 +138,7 @@ private:
     return true;
   }
 
-  enum { dc_request_data, dc_receive_data, dc_send_ack, dc_abort, dc_complete } download_stage;
+  enum { request_frame, ack_frame } last_send;
   // indicator that now we are on last block of transaction
   bool is_last_block;
   // indicated whether file is opened. This is needed for lazy file opening
@@ -349,4 +294,9 @@ private:
  *
  * 6. Don't make a base class just for the sake of it. There isn't much base_client is serving at this point
  * of time ???
+ *
+ * 7. Always maintain one or max two parllel task at hand. Anything more than that becomes a complicated
+ * jugglery. Some places where two tasks are unavoidable is, when we are receiving some data with timeout.
+ * Here both operaitons will have to fired parlley. There is no other way. (May be async_receive methods could
+ * have helped with timeout arguments here)
  */

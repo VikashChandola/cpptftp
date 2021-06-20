@@ -20,8 +20,6 @@ const error_code receive_timeout         = 102;
 // Server responded with nonsense data
 const error_code invalid_server_response = 103;
 const error_code server_error_response   = 104;
-// Connection is aborted by user by example user called stop() method
-const error_code connection_aborted      = 105;
 // State machine reached an invalid state
 const error_code state_machine_broke     = 106;
 // Received too many packets from unknown endpoint
