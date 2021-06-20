@@ -10,3 +10,4 @@ AlwaysBreakTemplateDeclarations: Yes
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: AcrossEmptyLinesAndComments
 AlignConsecutiveMacros: AcrossEmptyLinesAndComments
+ReflowComments: true
