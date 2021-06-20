@@ -37,7 +37,7 @@
  *   //object f is usable now.
  * }
  */
-#define TFTP_FRAME_MAX_DATA_LEN 512
+#define TFTP_FRAME_MAX_DATA_LEN  512
 #define TFTP_FRAME_MAX_FRAME_LEN 516
 
 namespace tftp {
@@ -84,9 +84,10 @@ public:
 
   static frame_s create_write_request_frame(const std::string &file_name, const data_mode mode = mode_octet);
 
-  template <typename T> static frame_s create_data_frame(T itr, const T &itr_end, const uint16_t &block_number) {
+  template <typename T>
+  static frame_s create_data_frame(T itr, const T &itr_end, const uint16_t &block_number) {
     frame_s self = frame::get_base_frame(frame::op_data);
-    self->code = frame::op_data;
+    self->code   = frame::op_data;
     self->append_to_frame(block_number);
     self->block_number = block_number;
     self->append_to_frame(itr, std::min(itr_end, itr + TFTP_FRAME_MAX_DATA_LEN));
@@ -134,7 +135,8 @@ private:
 
   void append_to_frame(const char &&data);
 
-  template <typename T> void append_to_frame(T itr, const T &itr_end) {
+  template <typename T>
+  void append_to_frame(T itr, const T &itr_end) {
     while (itr != itr_end) {
       this->data.push_back(*itr);
       itr++;
@@ -155,9 +157,12 @@ private:
 #endif
 
 /* NOTES:
- * 1. It would have been more efficient if there was one parent class frame and different kind of frames example
- *    error frame, data frame, request frame etc were child classes
- *    Why, User of frame needs frame specific data for example user of error frame will need a getter for error
- *    message but this method is always there for frame. It becomes useless API if frame is a data frame. This leads
- *    to check in each getter for frame type. Most of the public methods are not relevnat for frame object.
+ * 1. It would have been more efficient if there was one parent class frame and different kind of frames
+ * example error frame, data frame, request frame etc were child classes Why, User of frame needs frame
+ * specific data for example user of error frame will need a getter for error message but this method is
+ * always there for frame. It becomes useless API if frame is a data frame. This leads to check in each getter
+ * for frame type. Most of the public methods are not relevnat for frame object.
+ * ---------------------------------------------06/20/2021---------------------------------------------
+ *  2. Point 1 hasn't created any problem till now. Current way of doing may be good enough for small framing
+ * as we need for current use case. So keep using single class approach until it keeps working.
  */
