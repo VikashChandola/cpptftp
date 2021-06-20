@@ -4,6 +4,6 @@
 #include <boost/asio.hpp>
 
 static const boost::asio::chrono::duration<uint64_t, std::milli> default_network_timeout(1000);
-static const uint16_t default_retry_count(3);
+static const uint16_t default_max_retry_count(3);
 
 #endif

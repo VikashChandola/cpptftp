@@ -10,6 +10,7 @@
 #include <iostream>
 #include <memory>
 
+#include "log.hpp"
 #include "tftp_common.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
@@ -17,7 +18,7 @@
 using boost::asio::ip::udp;
 
 namespace tftp {
-typedef std::function<void(tftp::error_code)> client_completion_callback;
+typedef std::function<void(error_code)> client_completion_callback;
 
 class client;
 typedef std::shared_ptr<client> client_s;
@@ -42,20 +43,20 @@ public:
       const std::string &local_file_name,
       client_completion_callback callback,
       const boost::asio::chrono::duration<uint64_t, std::milli> network_timeout = default_network_timeout,
-      const uint16_t retry_count                                                = default_retry_count)
+      const uint16_t max_retry_count                                            = default_max_retry_count)
       : remote_endpoint(remote_endpoint),
         remote_file_name(remote_file_name),
         local_file_name(local_file_name),
         callback(callback),
         network_timeout(network_timeout),
-        retry_count(retry_count) {}
+        max_retry_count(max_retry_count) {}
 
   const udp::endpoint remote_endpoint;
   const std::string remote_file_name;
   const std::string local_file_name;
   client_completion_callback callback;
   const boost::asio::chrono::duration<uint64_t, std::micro> network_timeout;
-  const uint16_t retry_count;
+  const uint16_t max_retry_count;
 };
 
 class download_client_config : public client_config {
@@ -66,23 +67,31 @@ public:
 class base_client {
 public:
   virtual ~base_client();
-  virtual void start();
-  virtual void stop();
+  virtual void start() = 0;
+  virtual void abort() = 0;
 
 protected:
+  template <typename T>
+  static std::string to_string(const T &endpoint) {
+    std::stringstream ss;
+    ss << endpoint;
+    return ss.str();
+  }
+
   base_client(boost::asio::io_context &io, const client_config &config);
   virtual void sender()                                                                              = 0;
   virtual void sender_cb(const boost::system::error_code &error, const std::size_t bytes_sent)       = 0;
   virtual void receiver()                                                                            = 0;
   virtual void receiver_cb(const boost::system::error_code &error, const std::size_t bytes_received) = 0;
-  virtual void exit(tftp::error_code e);
+  virtual void exit(error_code e);
 
   const udp::endpoint server_endpoint;
   const std::string remote_file_name;
   const std::string local_file_name;
   client_completion_callback callback;
   const boost::asio::chrono::duration<uint64_t, std::micro> timeout;
-  const uint16_t retry_count;
+  const uint16_t max_retry_count;
+  uint16_t window_size = 512;
 
   udp::socket socket;
   udp::endpoint server_tid;
@@ -92,6 +101,7 @@ protected:
   uint16_t block_number;
   enum { client_constructed, client_running, client_completed, client_aborted } client_stage;
   std::fstream file_handle;
+  uint16_t retry_count;
 };
 
 class download_client : public std::enable_shared_from_this<download_client>, public base_client {
@@ -99,7 +109,7 @@ public:
   static download_client_s create(boost::asio::io_context &io, const download_client_config &config);
   ~download_client(){};
   void start();
-  void stop();
+  void abort();
 
 private:
   download_client(boost::asio::io_context &io, const download_client_config &config);
@@ -107,6 +117,64 @@ private:
   void sender_cb(const boost::system::error_code &error, const std::size_t bytes_sent);
   void receiver();
   void receiver_cb(const boost::system::error_code &error, const std::size_t bytes_received);
+  void exit(error_code e);
+
+  void re_send(const error_code &current_error);
+  void re_receive(const error_code &current_error);
+
+  bool is_server_endpoint_good() {
+    if (this->server_tid.port() == 0) {
+      this->server_tid = this->receive_tid;
+    } else if (this->server_tid != this->receive_tid) {
+      WARN("Expecting data from %s but received from %s",
+           to_string(this->server_tid).c_str(),
+           to_string(this->receive_tid).c_str());
+      this->re_receive(error::network_interference);
+      return false;
+    }
+    return true;
+  }
+
+  bool is_frame_type_data() {
+    try {
+      this->frame->parse_frame();
+    } catch (framing_exception &e) {
+      WARN("Failed to parse frame received from [%s]", to_string(this->receive_tid).c_str());
+      this->re_receive(error::invalid_server_response);
+      return false;
+    }
+    // Is op code proper
+    switch (this->frame->get_op_code()) {
+    case frame::op_data:
+      return true;
+    case frame::op_error:
+      this->exit(this->frame->get_error_code());
+      return false;
+    default:
+      this->re_receive(error::invalid_server_response);
+      return false;
+    }
+  }
+
+  bool parse_received_data() {
+    auto data_pair = this->frame->get_data_iterator();
+    if (!this->write(data_pair.first, data_pair.second)) {
+      ERROR("IO Error on file %s. Aborting", this->local_file_name.c_str());
+      this->exit(error::disk_io_error);
+      return false;
+    }
+    this->retry_count = 0;
+    if (this->block_number + 1 != this->frame->get_block_number()) {
+      WARN("Got block number increment by %d. Possible data loss",
+           (this->frame->get_block_number() - this->block_number));
+    }
+    this->block_number = this->frame->get_block_number();
+    DEBUG("received %u bytes", static_cast<uint16_t>(data_pair.second - data_pair.first));
+    if (data_pair.second - data_pair.first != this->window_size) {
+      this->is_last_block = true;
+    }
+    return true;
+  }
 
   template <typename T>
   bool write(T itr, const T &itr_end) noexcept {
@@ -115,15 +183,17 @@ private:
       this->is_file_open = true;
     }
     if (!this->file_handle.is_open()) {
+      ERROR("Failed to open file %s for writting", this->local_file_name.c_str());
       return false;
     }
     while (itr != itr_end) {
       this->file_handle << *itr;
+      itr++;
     }
     return true;
   }
 
-  enum { dc_request_data, dc_receive_data, dc_send_ack, dc_resend_ack, dc_abort } download_stage;
+  enum { dc_request_data, dc_receive_data, dc_send_ack, dc_abort, dc_complete } download_stage;
   // indicator that now we are on last block of transaction
   bool is_last_block;
   // indicated whether file is opened. This is needed for lazy file opening
@@ -164,7 +234,7 @@ private:
   std::unique_ptr<std::istream> u_in;
   client_completion_callback callback;
   frame_s frame;
-  tftp::error_code exec_error;
+  error_code exec_error;
   uint16_t block_number;
   bool is_last_block = false;
 };
@@ -266,4 +336,17 @@ private:
  * 3. There is no logging in client library. This is not good. It makes first level debugging impossible.
  * Always add logs with log levels in your program. This way user can get desired amount of logs. This was
  * addressed to some extent in server implementation. There it's only cout and cerr but better than nothing.
+ * ---------------------------------------------06/20/2021---------------------------------------------
+ * 4. Looping between sender, sender_cb and receiver, receiver_cb is fine as long of number of states is
+ * limited. This is getting compilcated as number of states increases. Basically for every new state all of
+ * these four methods need to be aware on what to do. Even if we say don't handle this case and abort. That's
+ * not right way. There are only a known set of things that sender_cb need to do when a read request is
+ * sent(that is to check for transmition correctness and ask receiver to listen) but right now code to handle
+ * other things is also clubbed in same function. Smaller blocks will give clearer code flow.
+ *
+ * 5. Don't maintain multiple multiple states. It is just against the dry priciples. client_state and
+ * download_state. Both are somewhat similar. Does it worth to keep such copies ???
+ *
+ * 6. Don't make a base class just for the sake of it. There isn't much base_client is serving at this point
+ * of time ???
  */
