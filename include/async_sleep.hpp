@@ -14,6 +14,7 @@ public:
   virtual ms_duration operator()() = 0;
   virtual ~duration_generator(){};
 };
+typedef std::shared_ptr<duration_generator> duration_generator_s;
 
 class constant_duration_generator : public duration_generator {
 private:
@@ -23,6 +24,7 @@ public:
   constant_duration_generator(const ms_duration &_delay) : delay(_delay) {}
   ms_duration operator()() override { return delay; }
 };
+typedef std::shared_ptr<constant_duration_generator> constant_duration_generator_s;
 
 class random_duration_generator : public duration_generator {
 private:
@@ -43,5 +45,6 @@ public:
 
   ms_duration operator()() { return ms_duration(distrib(rd)); }
 };
+typedef std::shared_ptr<random_duration_generator> random_duration_generator_s;
 
 #endif

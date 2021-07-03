@@ -1,0 +1,1 @@
+option('DELAY_SEND', type: 'feature', value : 'disabled', description :'Enables delayed send')
