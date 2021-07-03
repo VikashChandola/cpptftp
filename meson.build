@@ -19,9 +19,14 @@ lib_tftpframe = library('tftpframe', sources :lib_tftpframe_src,
                         version : '0.0.1', soversion :'0')
 
 tftpframe_test_src = ['test/tftp_frame_test.cpp']
-tftpframe_test_exec = executable('tftp_frame_test', sources :tftpframe_test_src, 
+tftpframe_test_exec = executable('test_tftp_frame', sources :tftpframe_test_src, 
                             include_directories :tftp_inc_dir,
                             link_with :lib_tftpframe)
+
+async_sleep_test_src = ['test/async_sleep_test.cpp']
+async_sleep_test_exec = executable('test_async_slep', sources :async_sleep_test_src, 
+                            include_directories :tftp_inc_dir)
+
 #----------------------------------------------------------------------------------------------------------------------
 
 lib_tftpclient_src = ['src/tftp_client.cpp']
