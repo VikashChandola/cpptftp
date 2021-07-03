@@ -1,1 +1,15 @@
-#mesondefine DELAY_SEND
+#ifndef __PROJECT_CONFIG_HPP__
+#define __PROJECT_CONFIG_HPP__
+// Project configuration file
+
+// Sets whether send should be delayed. This parameter is inteded to be used for simulate network delays.
+// This will make sends to asynchronously wait for some amount of time before initiating send.
+#mesondefine CONF_DELAY_SEND
+
+// Default network timeout(in milliseconds)
+#mesondefine CONF_NETWORK_TIMEOUT
+
+// Max retry before bailing on a given peer
+#mesondefine CONF_MAX_RETRY_COUNT
+
+#endif

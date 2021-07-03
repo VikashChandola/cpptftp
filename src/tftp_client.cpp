@@ -27,12 +27,26 @@ base_client::base_client(boost::asio::io_context &io, const client_config &confi
       callback(config.callback),
       timeout(config.network_timeout),
       max_retry_count(config.max_retry_count),
+      delay_gen(config.delay_gen),
       socket(io),
       timer(io),
+      delay_timer(io),
       block_number(0),
       client_stage(client_constructed),
       retry_count(0) {
   this->socket.open(udp::v4());
+}
+
+void base_client::do_send(const udp::endpoint &endpoint,
+                          std::function<void(const boost::system::error_code &, const std::size_t)> cb) {
+#ifdef CONF_DELAY_SEND
+  this->delay_timer.expires_after(this->delay_gen->get());
+  this->delay_timer.async_wait([&, cb](const boost::system::error_code &) {
+    this->socket.async_send_to(this->frame->get_asio_buffer(), endpoint, cb);
+  });
+#else
+  this->socket.async_send_to(this->frame->get_asio_buffer(), endpoint, cb);
+#endif
 }
 
 base_client::~base_client() {}
@@ -81,7 +95,7 @@ void download_client::abort() {
     return;
   }
   this->client_stage = client_aborted;
-  this->socket.cancel();
+  // this->socket.cancel();
 }
 
 void download_client::exit(error_code e) {
@@ -96,12 +110,11 @@ void download_client::exit(error_code e) {
 
 void download_client::send_request() {
   this->frame = frame::create_read_request_frame(this->remote_file_name);
-  this->socket.async_send_to(this->frame->get_asio_buffer(),
-                             this->server_endpoint,
-                             std::bind(&download_client::send_request_cb,
-                                       shared_from_this(),
-                                       std::placeholders::_1,
-                                       std::placeholders::_2));
+  this->do_send(this->server_endpoint,
+                std::bind(&download_client::send_request_cb,
+                          shared_from_this(),
+                          std::placeholders::_1,
+                          std::placeholders::_2));
 }
 
 void download_client::send_request_cb(const boost::system::error_code &error, const std::size_t bytes_sent) {
@@ -116,21 +129,17 @@ void download_client::send_request_cb(const boost::system::error_code &error, co
 
 void download_client::send_ack() {
   this->frame = frame::create_ack_frame(this->block_number);
-  this->socket.async_send_to(this->frame->get_asio_buffer(),
-                             this->server_tid,
-                             std::bind(&download_client::send_ack_cb,
-                                       shared_from_this(),
-                                       std::placeholders::_1,
-                                       std::placeholders::_2));
+  this->do_send(this->server_tid,
+                std::bind(&download_client::send_ack_cb,
+                          shared_from_this(),
+                          std::placeholders::_1,
+                          std::placeholders::_2));
 }
 
 void download_client::send_ack_cb(const boost::system::error_code &error, const std::size_t bytes_sent) {
   (void)(bytes_sent);
   if (error) {
-    ERROR("%s[%d] Received unrecoverable error [%s]",
-          __func__,
-          __LINE__,
-          base_client::to_string(error).c_str());
+    ERROR("%s[%d] Received unrecoverable error [%s]", __func__, __LINE__, to_string(error).c_str());
     this->exit(error::boost_asio_error_base + error.value());
     return;
   }
@@ -160,12 +169,13 @@ void download_client::receive_data() {
 
 void download_client::receive_data_cb(const boost::system::error_code &error,
                                       const std::size_t bytes_received) {
+  if (this->client_stage == client_aborted) {
+    // Abort is happening because of user request
+    this->exit(error::boost_asio_error_base + error.value());
+    return;
+  }
   if (error == boost::asio::error::operation_aborted) {
-    if (this->client_stage == client_aborted) {
-      // Abort is happening because of user request
-      this->exit(error::boost_asio_error_base + error.value());
-      return;
-    }
+
     WARN("Timed out while waiting for response on %s", to_string(this->socket.local_endpoint()).c_str());
     this->re_send(error::receive_timeout);
     return;

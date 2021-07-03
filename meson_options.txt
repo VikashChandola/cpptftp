@@ -1,1 +1,3 @@
 option('DELAY_SEND', type: 'feature', value : 'disabled', description :'Enables delayed send')
+option('NETWORK_TIMEOUT', type: 'integer', value: 1000, description: 'TFTP network timeout(in milliseconds)')
+option('MAX_RETRY_COUNT', type: 'integer', value: 3, min: 1, description: 'Maximum network IO retry count')

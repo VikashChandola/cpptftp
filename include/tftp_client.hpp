@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "log.hpp"
+#include "project_config.hpp"
 #include "tftp_common.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
@@ -43,13 +44,15 @@ public:
       const std::string &local_file_name,
       client_completion_callback callback,
       const boost::asio::chrono::duration<uint64_t, std::milli> network_timeout = default_network_timeout,
-      const uint16_t max_retry_count                                            = default_max_retry_count)
+      const uint16_t max_retry_count                                            = default_max_retry_count,
+      duration_generator_s delay_gen = std::make_shared<constant_duration_generator>(ms_duration(1000)))
       : remote_endpoint(remote_endpoint),
         remote_file_name(remote_file_name),
         local_file_name(local_file_name),
         callback(callback),
         network_timeout(network_timeout),
-        max_retry_count(max_retry_count) {}
+        max_retry_count(max_retry_count),
+        delay_gen(delay_gen) {}
 
   const udp::endpoint remote_endpoint;
   const std::string remote_file_name;
@@ -57,6 +60,7 @@ public:
   client_completion_callback callback;
   const boost::asio::chrono::duration<uint64_t, std::micro> network_timeout;
   const uint16_t max_retry_count;
+  duration_generator_s delay_gen;
 };
 
 class download_client_config : public client_config {
@@ -71,15 +75,11 @@ public:
   virtual void abort() = 0;
 
 protected:
-  template <typename T>
-  static std::string to_string(const T &endpoint) {
-    std::stringstream ss;
-    ss << endpoint;
-    return ss.str();
-  }
-
   base_client(boost::asio::io_context &io, const client_config &config);
   virtual void exit(error_code e) = 0;
+
+  void do_send(const udp::endpoint &,
+               std::function<void(const boost::system::error_code &, const std::size_t)>);
 
   const udp::endpoint server_endpoint;
   const std::string remote_file_name;
@@ -87,6 +87,7 @@ protected:
   client_completion_callback callback;
   const boost::asio::chrono::duration<uint64_t, std::micro> timeout;
   const uint16_t max_retry_count;
+  duration_generator_s delay_gen;
   uint16_t window_size = 512;
 
   udp::socket socket;
@@ -94,6 +95,7 @@ protected:
   udp::endpoint receive_tid;
   frame_s frame;
   boost::asio::steady_timer timer;
+  boost::asio::steady_timer delay_timer;
   uint16_t block_number;
   enum { client_constructed, client_running, client_completed, client_aborted } client_stage;
   std::fstream file_handle;
