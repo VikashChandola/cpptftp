@@ -12,6 +12,7 @@ private:
 protected:
 public:
   virtual ms_duration operator()() = 0;
+  ms_duration get() { return (*this)(); }
   virtual ~duration_generator(){};
 };
 typedef std::shared_ptr<duration_generator> duration_generator_s;
