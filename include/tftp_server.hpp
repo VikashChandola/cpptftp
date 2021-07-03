@@ -12,6 +12,7 @@
 
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
+#include "project_config.hpp"
 
 using boost::asio::ip::udp;
 
@@ -29,10 +30,10 @@ typedef std::shared_ptr<upload_server> upload_server_s;
 class server {
 public:
   server(boost::asio::io_context &io, frame_csc &frame, const udp::endpoint &endpoint, const std::string &work_dir,
-         const uint64_t &ms_timeout = 1000);
+         const uint64_t &ms_timeout = CONF_NETWORK_TIMEOUT);
 
 protected:
-  static const uint8_t max_retry_count = 3;
+  static const uint8_t max_retry_count = CONF_MAX_RETRY_COUNT;
 
   udp::socket socket;
   const udp::endpoint client_endpoint;

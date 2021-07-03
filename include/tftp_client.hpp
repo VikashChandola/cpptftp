@@ -15,6 +15,7 @@
 #include "tftp_common.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
+#include "async_sleep.hpp"
 
 using boost::asio::ip::udp;
 
@@ -43,9 +44,10 @@ public:
       const std::string &remote_file_name,
       const std::string &local_file_name,
       client_completion_callback callback,
-      const boost::asio::chrono::duration<uint64_t, std::milli> network_timeout = default_network_timeout,
-      const uint16_t max_retry_count                                            = default_max_retry_count,
-      duration_generator_s delay_gen = std::make_shared<constant_duration_generator>(ms_duration(1000)))
+      const boost::asio::chrono::duration<uint64_t, std::milli> network_timeout = ms_duration(CONF_NETWORK_TIMEOUT),
+      const uint16_t max_retry_count                                            = CONF_MAX_RETRY_COUNT,
+      duration_generator_s delay_gen =
+          std::make_shared<constant_duration_generator>(ms_duration(CONF_CONSTANT_DELAY_DURATION)))
       : remote_endpoint(remote_endpoint),
         remote_file_name(remote_file_name),
         local_file_name(local_file_name),
@@ -114,6 +116,7 @@ private:
   void send_request();
   void send_request_cb(const boost::system::error_code &error, const std::size_t bytes_sent);
   void send_ack();
+  void send_ack_for_block_number(uint16_t);
   void send_ack_cb(const boost::system::error_code &error, const std::size_t bytes_sent);
   void receive_data();
   void receive_data_cb(const boost::system::error_code &error, const std::size_t bytes_received);

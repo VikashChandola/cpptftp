@@ -12,6 +12,7 @@
 #include "tftp_client.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_exception.hpp"
+#include "async_sleep.hpp"
 
 using boost::asio::ip::udp;
 using namespace tftp;
@@ -128,7 +129,11 @@ void download_client::send_request_cb(const boost::system::error_code &error, co
 }
 
 void download_client::send_ack() {
-  this->frame = frame::create_ack_frame(this->block_number);
+  this->send_ack_for_block_number(this->block_number);
+}
+
+void download_client::send_ack_for_block_number(uint16_t block_num) {
+  this->frame = frame::create_ack_frame(block_num);
   this->do_send(this->server_tid,
                 std::bind(&download_client::send_ack_cb,
                           shared_from_this(),
@@ -201,6 +206,9 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
   }
   if (this->block_number + 1 != this->frame->get_block_number()) {
     WARN("Expected blocks number %u got %u", this->block_number + 1, this->frame->get_block_number());
+    WARN("Block %u is rejected", this->frame->get_block_number());
+    this->send_ack_for_block_number(this->frame->get_block_number());
+    return;
   }
   this->block_number = this->frame->get_block_number();
   if (!this->write(itr_pair.first, itr_pair.second)) {
