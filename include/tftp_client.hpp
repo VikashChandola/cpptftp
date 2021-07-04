@@ -10,12 +10,12 @@
 #include <iostream>
 #include <memory>
 
+#include "duration_generator.hpp"
 #include "log.hpp"
 #include "project_config.hpp"
 #include "tftp_common.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
-#include "duration_generator.hpp"
 
 using boost::asio::ip::udp;
 
@@ -27,7 +27,7 @@ typedef std::shared_ptr<client> client_s;
 
 class base_client;
 
-class client_config;
+class base_client_config;
 
 class download_client_config;
 class download_client;
@@ -37,48 +37,18 @@ class client_uploader_config;
 class client_uploader;
 typedef std::shared_ptr<client_uploader> client_uploader_s;
 
-class client_config : public base_config{
+class base_client_config : public base_config {
 public:
   using base_config::base_config;
 };
 
-class download_client_config : public client_config {
+class download_client_config : public base_client_config {
 public:
-  using client_config::client_config;
+  using base_client_config::base_client_config;
 };
 
-class base_client {
-public:
-  virtual ~base_client();
-  virtual void start() = 0;
-  virtual void abort() = 0;
-
-protected:
-  base_client(boost::asio::io_context &io, const client_config &config);
-  virtual void exit(error_code e) = 0;
-
-  void do_send(const udp::endpoint &,
-               std::function<void(const boost::system::error_code &, const std::size_t)>);
-
-  const udp::endpoint server_endpoint;
-  const std::string remote_file_name;
-  const std::string local_file_name;
-  client_completion_callback callback;
-  const boost::asio::chrono::duration<uint64_t, std::micro> timeout;
-  const uint16_t max_retry_count;
-  duration_generator_s delay_gen;
-  uint16_t window_size = 512;
-
-  udp::socket socket;
-  udp::endpoint server_tid;
-  udp::endpoint receive_tid;
-  frame_s frame;
-  boost::asio::steady_timer timer;
-  boost::asio::steady_timer delay_timer;
-  uint16_t block_number;
-  enum { client_constructed, client_running, client_completed, client_aborted } client_stage;
-  std::fstream file_handle;
-  uint16_t retry_count;
+class base_client : public base_worker {
+  using base_worker::base_worker;
 };
 
 class download_client : public std::enable_shared_from_this<download_client>, public base_client {

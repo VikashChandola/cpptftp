@@ -8,49 +8,14 @@
 
 #include <boost/asio.hpp>
 
+#include "duration_generator.hpp"
 #include "log.hpp"
 #include "tftp_client.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_exception.hpp"
-#include "duration_generator.hpp"
 
 using boost::asio::ip::udp;
 using namespace tftp;
-
-//-----------------------------------------------------------------------------
-
-//-----------------------------------------------------------------------------
-
-base_client::base_client(boost::asio::io_context &io, const client_config &config)
-    : server_endpoint(config.remote_endpoint),
-      remote_file_name(config.remote_file_name),
-      local_file_name(config.local_file_name),
-      callback(config.callback),
-      timeout(config.network_timeout),
-      max_retry_count(config.max_retry_count),
-      delay_gen(config.delay_gen),
-      socket(io),
-      timer(io),
-      delay_timer(io),
-      block_number(0),
-      client_stage(client_constructed),
-      retry_count(0) {
-  this->socket.open(udp::v4());
-}
-
-void base_client::do_send(const udp::endpoint &endpoint,
-                          std::function<void(const boost::system::error_code &, const std::size_t)> cb) {
-#ifdef CONF_DELAY_SEND
-  this->delay_timer.expires_after(this->delay_gen->get());
-  this->delay_timer.async_wait([&, cb](const boost::system::error_code &) {
-    this->socket.async_send_to(this->frame->get_asio_buffer(), endpoint, cb);
-  });
-#else
-  this->socket.async_send_to(this->frame->get_asio_buffer(), endpoint, cb);
-#endif
-}
-
-base_client::~base_client() {}
 
 //-----------------------------------------------------------------------------
 
@@ -128,9 +93,7 @@ void download_client::send_request_cb(const boost::system::error_code &error, co
   }
 }
 
-void download_client::send_ack() {
-  this->send_ack_for_block_number(this->block_number);
-}
+void download_client::send_ack() { this->send_ack_for_block_number(this->block_number); }
 
 void download_client::send_ack_for_block_number(uint16_t block_num) {
   this->frame = frame::create_ack_frame(block_num);
