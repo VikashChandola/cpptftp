@@ -58,9 +58,9 @@ int main(int argc, char **argv) {
   boost::asio::io_context io;
   udp::resolver resolver(io);
   udp::endpoint remote_endpoint;
-  remote_endpoint            = *resolver.resolve(udp::v4(), ip, port).begin();
+  remote_endpoint                        = *resolver.resolve(udp::v4(), ip, port).begin();
 
-  tftp::client_s tftp_client = tftp::client::create(io, remote_endpoint);
+  tftp::client_distributor_s tftp_client = tftp::client_distributor::create(io, remote_endpoint);
 
   switch (operation) {
   case Operation_download:

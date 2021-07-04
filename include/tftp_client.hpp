@@ -22,8 +22,8 @@ using boost::asio::ip::udp;
 namespace tftp {
 typedef std::function<void(error_code)> client_completion_callback;
 
-class client;
-typedef std::shared_ptr<client> client_s;
+class client_distributor;
+typedef std::shared_ptr<client_distributor> client_distributor_s;
 
 class base_client;
 
@@ -164,18 +164,22 @@ private:
  * 2. Execute download_file or upload_file method to download or upload files. Both of these methods take
  *    function object as last argument. This method gets called on completion of download/upload operation.
  */
-class client {
+class client_distributor {
 public:
-  /* Creates client_s object
+  /* Creates client_distributor_s object
    * Argument
    * io               :asio io context object
    * remote_endpoint  :udp::endpoint object for tftp server. All downloads/uploads from this client will be
    * executed on this endpoint Return : client_s object
    */
-  static client_s create(boost::asio::io_context &io,
-                         const udp::endpoint remote_endpoint,
-                         const std::string work_dir = "./") {
-    return std::make_shared<client>(client(io, remote_endpoint, work_dir));
+  static client_distributor_s create(boost::asio::io_context &io,
+                                     const udp::endpoint remote_endpoint,
+                                     const std::string work_dir = "./") {
+    client_distributor_s self(new client_distributor(io, remote_endpoint, work_dir));
+    return self;
+    // How the fuck was this not crashing ?
+    // One free by shared_ptr other by stack ??
+    // return std::make_shared<client_distributor>(client_distributor(io, remote_endpoint, work_dir));
   }
 
   /* Downloads file from tftp server and writes to disk
@@ -210,18 +214,11 @@ public:
                             std::make_unique<std::ifstream>(local_file_name, std::ios::binary | std::ios::in),
                             upload_callback);
   }
-  void upload_file(const std::string &remote_file_name,
-                   std::unique_ptr<std::istream> u_in_stream,
-                   client_completion_callback upload_callback) {
-    client_uploader::create(this->io,
-                            remote_file_name,
-                            this->remote_endpoint,
-                            std::move(u_in_stream),
-                            upload_callback);
-  }
 
 private:
-  client(boost::asio::io_context &io_, const udp::endpoint &remote_endpoint_, const std::string work_dir_)
+  client_distributor(boost::asio::io_context &io_,
+                     const udp::endpoint &remote_endpoint_,
+                     const std::string work_dir_)
       : io(io_),
         remote_endpoint(remote_endpoint_),
         work_dir(work_dir_) {}
