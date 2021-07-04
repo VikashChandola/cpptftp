@@ -15,7 +15,7 @@
 #include "tftp_common.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
-#include "async_sleep.hpp"
+#include "duration_generator.hpp"
 
 using boost::asio::ip::udp;
 
@@ -37,32 +37,9 @@ class client_uploader_config;
 class client_uploader;
 typedef std::shared_ptr<client_uploader> client_uploader_s;
 
-class client_config {
+class client_config : public base_config{
 public:
-  client_config(
-      const udp::endpoint &remote_endpoint,
-      const std::string &remote_file_name,
-      const std::string &local_file_name,
-      client_completion_callback callback,
-      const boost::asio::chrono::duration<uint64_t, std::milli> network_timeout = ms_duration(CONF_NETWORK_TIMEOUT),
-      const uint16_t max_retry_count                                            = CONF_MAX_RETRY_COUNT,
-      duration_generator_s delay_gen =
-          std::make_shared<constant_duration_generator>(ms_duration(CONF_CONSTANT_DELAY_DURATION)))
-      : remote_endpoint(remote_endpoint),
-        remote_file_name(remote_file_name),
-        local_file_name(local_file_name),
-        callback(callback),
-        network_timeout(network_timeout),
-        max_retry_count(max_retry_count),
-        delay_gen(delay_gen) {}
-
-  const udp::endpoint remote_endpoint;
-  const std::string remote_file_name;
-  const std::string local_file_name;
-  client_completion_callback callback;
-  const boost::asio::chrono::duration<uint64_t, std::micro> network_timeout;
-  const uint16_t max_retry_count;
-  duration_generator_s delay_gen;
+  using base_config::base_config;
 };
 
 class download_client_config : public client_config {

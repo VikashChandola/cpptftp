@@ -28,8 +28,8 @@ test_tftp_frame_src = ['test/tftp_frame_test.cpp',
                        'src/tftp_frame.cpp']
 executable('test_tftp_frame', sources: test_tftp_frame_src,include_directories: tftp_inc_dir)
 
-test_async_slep_src = ['test/async_sleep_test.cpp']
-executable('test_async_slep', sources: test_async_slep_src, include_directories: tftp_inc_dir)
+test_duration_generator_src = ['test/duration_generator_test.cpp']
+executable('test_duration_generator', sources: test_duration_generator_src, include_directories: tftp_inc_dir)
 #----------------------------------------------------------------------------------------------------------------------
 
 simple_client_src = ['src/simple_client.cpp',

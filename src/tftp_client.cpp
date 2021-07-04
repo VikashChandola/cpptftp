@@ -12,7 +12,7 @@
 #include "tftp_client.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_exception.hpp"
-#include "async_sleep.hpp"
+#include "duration_generator.hpp"
 
 using boost::asio::ip::udp;
 using namespace tftp;

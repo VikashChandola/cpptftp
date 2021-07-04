@@ -1,10 +1,10 @@
-#define BOOST_TEST_MODULE async sleep
+#define BOOST_TEST_MODULE duration generator test
 #include <boost/test/data/monomorphic.hpp>
 #include <boost/test/data/test_case.hpp>
 #include <boost/test/included/unit_test.hpp>
 #include <unordered_map>
 
-#include "async_sleep.hpp"
+#include "duration_generator.hpp"
 
 namespace bdata = boost::unit_test::data;
 
