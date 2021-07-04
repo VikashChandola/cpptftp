@@ -25,7 +25,7 @@ typedef std::function<void(error_code)> client_completion_callback;
 class client_distributor;
 typedef std::shared_ptr<client_distributor> client_distributor_s;
 
-class base_client;
+class client;
 
 class client_config;
 
@@ -61,11 +61,11 @@ public:
   using client_config::client_config;
 };
 
-class base_client : public base_worker {
+class client : public base_worker {
   using base_worker::base_worker;
 };
 
-class download_client : public std::enable_shared_from_this<download_client>, public base_client {
+class download_client : public std::enable_shared_from_this<download_client>, public client {
 public:
   static download_client_s create(boost::asio::io_context &io, const download_client_config &config);
   ~download_client(){};
@@ -261,8 +261,8 @@ private:
  * 5. Don't maintain multiple multiple states. It is just against the dry priciples. client_state and
  * download_state. Both are somewhat similar. Does it worth to keep such copies ???
  *
- * 6. Don't make a base class just for the sake of it. There isn't much base_client is serving at this point
- * of time ???
+ * 6. Don't make a base class just for the sake of it. There isn't much base_client(now client) is serving at
+ * this point of time ???
  *
  * 7. Always maintain one or max two parllel task at hand. Anything more than that becomes a complicated
  * jugglery. Some places where two tasks are unavoidable is, when we are receiving some data with timeout.

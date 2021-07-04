@@ -20,7 +20,7 @@ using namespace tftp;
 //-----------------------------------------------------------------------------
 
 download_client::download_client(boost::asio::io_context &io, const download_client_config &config)
-    : base_client(io, config),
+    : client(io, config),
       remote_file_name(config.remote_file_name),
       local_file_name(config.local_file_name),
       callback(config.callback),
