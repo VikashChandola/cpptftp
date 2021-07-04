@@ -27,7 +27,8 @@ int main(int argc, char **argv) {
       break;
     case '?':
     default:
-      std::cout << "Usage :" << argv[0] << " -H <host address> -P <port number> -W <working directory>" << std::endl;
+      std::cout << "Usage :" << argv[0] << " -H <host address> -P <port number> -W <working directory>"
+                << std::endl;
       return -1;
       break;
     }
@@ -40,8 +41,8 @@ int main(int argc, char **argv) {
   boost::asio::io_context io;
   udp::resolver resolver(io);
   udp::endpoint local_endpoint;
-  local_endpoint = *resolver.resolve(udp::v4(), ip, port).begin();
-  tftp::distributor_s tftp_server = tftp::distributor::create(io, local_endpoint, work_dir);
+  local_endpoint                         = *resolver.resolve(udp::v4(), ip, port).begin();
+  tftp::server_distributor_s tftp_server = tftp::server_distributor::create(io, local_endpoint, work_dir);
   tftp_server->start_service();
   io.run();
   return 0;

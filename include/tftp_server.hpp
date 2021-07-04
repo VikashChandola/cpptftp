@@ -10,16 +10,16 @@
 #include <iostream>
 #include <memory>
 
+#include "project_config.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
-#include "project_config.hpp"
 
 using boost::asio::ip::udp;
 
 namespace tftp {
 
-class distributor;
-typedef std::shared_ptr<distributor> distributor_s;
+class server_distributor;
+typedef std::shared_ptr<server_distributor> server_distributor_s;
 
 class download_server;
 typedef std::shared_ptr<download_server> download_server_s;
@@ -29,7 +29,10 @@ typedef std::shared_ptr<upload_server> upload_server_s;
 
 class server {
 public:
-  server(boost::asio::io_context &io, frame_csc &frame, const udp::endpoint &endpoint, const std::string &work_dir,
+  server(boost::asio::io_context &io,
+         frame_csc &frame,
+         const udp::endpoint &endpoint,
+         const std::string &work_dir,
          const uint64_t &ms_timeout = CONF_NETWORK_TIMEOUT);
 
 protected:
@@ -50,10 +53,14 @@ protected:
 
 class download_server : public server, public std::enable_shared_from_this<download_server> {
 public:
-  static void serve(boost::asio::io_context &io, frame_csc &frame, const udp::endpoint &endpoint,
+  static void serve(boost::asio::io_context &io,
+                    frame_csc &frame,
+                    const udp::endpoint &endpoint,
                     const std::string &work_dir);
 
-  download_server(boost::asio::io_context &io, frame_csc &first_frame, const udp::endpoint &endpoint,
+  download_server(boost::asio::io_context &io,
+                  frame_csc &first_frame,
+                  const udp::endpoint &endpoint,
                   const std::string &work_dir);
 
   ~download_server();
@@ -81,10 +88,14 @@ private:
 
 class upload_server : public server, public std::enable_shared_from_this<upload_server> {
 public:
-  static void serve(boost::asio::io_context &io, frame_csc &frame, const udp::endpoint &endpoint,
+  static void serve(boost::asio::io_context &io,
+                    frame_csc &frame,
+                    const udp::endpoint &endpoint,
                     const std::string &work_dir);
 
-  upload_server(boost::asio::io_context &io, frame_csc &first_frame, const udp::endpoint &endpoint,
+  upload_server(boost::asio::io_context &io,
+                frame_csc &first_frame,
+                const udp::endpoint &endpoint,
                 const std::string &work_dir);
 
   ~upload_server();
@@ -107,29 +118,30 @@ private:
   std::ofstream write_stream;
 };
 
-/* `distributor` provides tftp server functionality. distributor usage
- * 1. Create distributor_s object
- *      distributor_s server = distributor::create(...)
+/* `server_distributor` provides tftp server functionality. server_distributor usage
+ * 1. Create server_distributor_s object
+ *      server_distributor_s server = server_distributor::create(...)
  * 2. Start listening for connections:
  *      server->start_service()
  *    start_service asynchronously start server. server will continue to run untill stopped.
  * 3. Stop server
  *      server->stop_service()
- *    This call kills server. Currently running download/upload operations will continue to run but no new connections
- *    will be accepted. distributor object will not hold io context object after stop.
- * distributor object acts as a listener and start separate objects(download_server,upload_server) to perform the
- * real operations.
+ *    This call kills server. Currently running download/upload operations will continue to run but no new
+ * connections will be accepted. server_distributor object will not hold io context object after stop.
+ * server_distributor object acts as a listener and start separate objects(download_server,upload_server) to
+ * perform the real operations.
  */
-class distributor : public std::enable_shared_from_this<distributor> {
+class server_distributor : public std::enable_shared_from_this<server_distributor> {
 public:
-  /* Creates distributor_s object
+  /* Creates server_distributor_s object
    * Argument
    * io               :asio io context object
    * local_endpoint   :udp::endpoint on which server will listen for new connection
    * work_dir         :working directory, All file operations will be done relative to this directory.
-   * Return : distributor_s object
+   * Return : server_distributor_s object
    */
-  static distributor_s create(boost::asio::io_context &io, const udp::endpoint &local_endpoint, std::string work_dir);
+  static server_distributor_s
+  create(boost::asio::io_context &io, const udp::endpoint &local_endpoint, std::string work_dir);
 
   uint64_t stop_service();
 
@@ -140,9 +152,9 @@ private:
 
   void perform_distribution_cb(const boost::system::error_code &error, const std::size_t &bytes_received);
 
-  distributor(boost::asio::io_context &io, const udp::endpoint &local_endpoint, std::string &work_dir);
+  server_distributor(boost::asio::io_context &io, const udp::endpoint &local_endpoint, std::string &work_dir);
 
-  // These two data members are forcing distributor to accept one connection at a time
+  // These two data members are forcing server_distributor to accept one connection at a time
   frame_s first_frame;
   udp::endpoint remote_endpoint;
 
