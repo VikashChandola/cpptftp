@@ -21,11 +21,15 @@ using namespace tftp;
 
 download_client::download_client(boost::asio::io_context &io, const download_client_config &config)
     : base_client(io, config),
+      remote_file_name(config.remote_file_name),
+      local_file_name(config.local_file_name),
+      callback(config.callback),
+      client_stage(client_constructed),
       is_last_block(false),
       is_file_open(false) {
   DEBUG("Setting up client to download remote file [%s] from [%s] to [%s]",
         this->remote_file_name.c_str(),
-        to_string(this->server_endpoint).c_str(),
+        to_string(this->remote_endpoint).c_str(),
         this->local_file_name.c_str());
   if (this->server_tid.port() != 0 && this->receive_tid.port() != 0) {
     /* server_tid and receive_tid must be initialized with 0 by default constructors otherwise it won't be
@@ -51,7 +55,7 @@ void download_client::start() {
   this->client_stage = client_running;
   DEBUG("Downloading file %s from server hosted at %s",
         this->local_file_name.c_str(),
-        to_string(this->server_endpoint).c_str());
+        to_string(this->remote_endpoint).c_str());
   this->send_request();
 }
 
@@ -76,7 +80,7 @@ void download_client::exit(error_code e) {
 
 void download_client::send_request() {
   this->frame = frame::create_read_request_frame(this->remote_file_name);
-  this->do_send(this->server_endpoint,
+  this->do_send(this->remote_endpoint,
                 std::bind(&download_client::send_request_cb,
                           shared_from_this(),
                           std::placeholders::_1,
@@ -126,7 +130,7 @@ void download_client::receive_data() {
                                             shared_from_this(),
                                             std::placeholders::_1,
                                             std::placeholders::_2));
-  this->timer.expires_after(this->timeout);
+  this->timer.expires_after(this->network_timeout);
   this->timer.async_wait([&](const boost::system::error_code &e) {
     if (e == boost::asio::error::operation_aborted) {
       return;

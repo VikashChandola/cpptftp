@@ -27,7 +27,7 @@ typedef std::shared_ptr<client> client_s;
 
 class base_client;
 
-class base_client_config;
+class client_config;
 
 class download_client_config;
 class download_client;
@@ -37,14 +37,28 @@ class client_uploader_config;
 class client_uploader;
 typedef std::shared_ptr<client_uploader> client_uploader_s;
 
-class base_client_config : public base_config {
+class client_config : public base_config {
 public:
-  using base_config::base_config;
+  client_config(const udp::endpoint &remote_endpoint,
+                const std::string &remote_file_name,
+                const std::string &local_file_name,
+                client_completion_callback callback,
+                const ms_duration network_timeout = ms_duration(CONF_NETWORK_TIMEOUT),
+                const uint16_t max_retry_count    = CONF_MAX_RETRY_COUNT,
+                duration_generator_s delay_gen =
+                    std::make_shared<constant_duration_generator>(ms_duration(CONF_CONSTANT_DELAY_DURATION)))
+      : base_config(remote_endpoint, network_timeout, max_retry_count, delay_gen),
+        remote_file_name(remote_file_name),
+        local_file_name(local_file_name),
+        callback(callback) {}
+  const std::string remote_file_name;
+  const std::string local_file_name;
+  client_completion_callback callback;
 };
 
-class download_client_config : public base_client_config {
+class download_client_config : public client_config {
 public:
-  using base_client_config::base_client_config;
+  using client_config::client_config;
 };
 
 class base_client : public base_worker {
@@ -90,11 +104,17 @@ private:
     return true;
   }
 
+  const std::string remote_file_name;
+  const std::string local_file_name;
+  client_completion_callback callback;
   enum { request_frame, ack_frame } last_send;
+  enum { client_constructed, client_running, client_completed, client_aborted } client_stage;
   // indicator that now we are on last block of transaction
   bool is_last_block;
   // indicated whether file is opened. This is needed for lazy file opening
   bool is_file_open;
+  udp::endpoint server_tid;
+  udp::endpoint receive_tid;
 };
 
 class client_uploader : public std::enable_shared_from_this<client_uploader> {
