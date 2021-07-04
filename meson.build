@@ -8,6 +8,7 @@ conf_data = configuration_data()
 if get_option('DELAY_SEND').enabled()
   conf_data.set('CONF_DELAY_SEND', true)
 endif
+conf_data.set('CONF_CONSTANT_DELAY_DURATION', get_option('CONSTANT_DELAY_DURATION'))
 conf_data.set('CONF_NETWORK_TIMEOUT', get_option('NETWORK_TIMEOUT'))
 conf_data.set('CONF_MAX_RETRY_COUNT', get_option('MAX_RETRY_COUNT'))
 configure_file(input: 'project_config.hpp.in', output: 'project_config.hpp', configuration: conf_data)

@@ -6,7 +6,9 @@
 // This will make sends to asynchronously wait for some amount of time before initiating send.
 #mesondefine CONF_DELAY_SEND
 
-#define CONF_CONSTANT_DELAY_DURATION 500
+// Amount of duration application will wait before sending next packet. This parameter is relevant only if
+// CONF_DELAY_SEND is enabled
+#mesondefine CONF_CONSTANT_DELAY_DURATION
 
 // Default network timeout(in milliseconds)
 #mesondefine CONF_NETWORK_TIMEOUT
