@@ -69,8 +69,8 @@ class download_client : public std::enable_shared_from_this<download_client>, pu
 public:
   static download_client_s create(boost::asio::io_context &io, const download_client_config &config);
   ~download_client(){};
-  void start();
-  void abort();
+  void start() override;
+  void abort() override;
 
 private:
   download_client(boost::asio::io_context &io, const download_client_config &config);
