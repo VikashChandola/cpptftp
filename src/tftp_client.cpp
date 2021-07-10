@@ -147,9 +147,17 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     return;
   }
   if (error == boost::asio::error::operation_aborted) {
-
     WARN("Timed out while waiting for response on %s", to_string(this->socket.local_endpoint()).c_str());
-    this->re_send(error::receive_timeout);
+    if (this->retry_count++ >= this->max_retry_count) {
+      this->exit(error::receive_timeout);
+      return;
+    } else {
+      if (this->block_number == 0) {
+        this->send_request();
+      } else {
+        this->send_ack();
+      }
+    }
     return;
   }
   if (this->server_tid.port() == 0) {
@@ -158,7 +166,12 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     WARN("Expecting data from %s but received from %s",
          to_string(this->server_tid).c_str(),
          to_string(this->receive_tid).c_str());
-    this->re_receive(error::invalid_server_response);
+    if (this->retry_count++ >= this->max_retry_count) {
+      this->exit(error::invalid_server_response);
+      return;
+    } else {
+      this->receive_data();
+    }
     return;
   }
   std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> itr_pair;
@@ -168,7 +181,7 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     itr_pair = this->frame->get_data_iterator();
   } catch (framing_exception &e) {
     WARN("Failed to parse response from %s", to_string(this->receive_tid).c_str());
-    this->re_send(error::invalid_server_response);
+    this->receive_data();
     return;
   }
   if (this->block_number + 1 != this->frame->get_block_number()) {
@@ -188,36 +201,6 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     this->is_last_block = true;
   }
   this->send_ack();
-}
-
-void download_client::exec_last_send() {
-  if (this->last_send == request_frame) {
-    this->send_request();
-  } else if (this->last_send == ack_frame) {
-    this->send_ack();
-  }
-}
-
-void download_client::re_send(const error_code &e) {
-  this->retry_count++;
-  if (this->retry_count >= this->max_retry_count) {
-    this->exit(e);
-    return;
-  } else {
-    // Do this through post
-    this->exec_last_send();
-  }
-}
-
-void download_client::re_receive(const error_code &e) {
-  this->retry_count++;
-  if (this->retry_count >= this->max_retry_count) {
-    this->exit(e);
-    return;
-  } else {
-    // Do this through post
-    this->receive_data();
-  }
 }
 
 //-----------------------------------------------------------------------------

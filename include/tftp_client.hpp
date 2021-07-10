@@ -83,10 +83,6 @@ private:
   void receive_data_cb(const boost::system::error_code &error, const std::size_t bytes_received);
   void exit(error_code e);
 
-  void exec_last_send();
-  void re_send(const error_code &e);
-  void re_receive(const error_code &e);
-
   template <typename T>
   bool write(T itr, const T &itr_end) noexcept {
     if (!this->is_file_open) {
