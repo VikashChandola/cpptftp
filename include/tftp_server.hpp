@@ -67,13 +67,29 @@ protected:
   std::string filename;
   bool is_last_frame;
   frame::error_code tftp_error_code;
+  enum { server_constructed, server_running, server_completed, server_aborted } server_stage;
 };
 
 class download_server : public server, public std::enable_shared_from_this<download_server> {
 public:
-  static void serve(boost::asio::io_context &io, const download_server_config &config);
-  void start() override{};
-  void abort() override{};
+  static download_server_s create(boost::asio::io_context &io, const download_server_config &config);
+  void start() override {
+    if (this->server_stage != server_constructed) {
+      return;
+    }
+    server_stage = server_running;
+    if (!this->read_stream.is_open()) {
+      std::cerr << this->remote_endpoint << " Failed to open '" << this->filename << "'" << std::endl;
+      this->tftp_error_code = frame::file_not_found;
+      this->stage           = ds_send_error;
+    }
+    this->sender();
+  };
+  void abort() override {
+    if (this->server_stage == server_running) {
+      this->server_stage = server_aborted;
+    }
+  };
   void exit(error_code e) override { (void)(e); };
 
   ~download_server() override;
@@ -101,10 +117,10 @@ private:
 
 class upload_server : public server, public std::enable_shared_from_this<upload_server> {
 public:
-  static void serve(boost::asio::io_context &io, const upload_server_config &config);
+  static upload_server_s create(boost::asio::io_context &io, const upload_server_config &config);
 
   ~upload_server();
-  void start() override{};
+  void start() override;
   void abort() override{};
   void exit(error_code e) override { (void)(e); };
 

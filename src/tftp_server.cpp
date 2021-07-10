@@ -9,7 +9,8 @@ using namespace tftp;
 server::server(boost::asio::io_context &io, const server_config &config)
     : base_worker(io, config),
       filename(config.filename),
-      is_last_frame(false) {}
+      is_last_frame(false),
+      server_stage(server_constructed) {}
 
 download_server::download_server(boost::asio::io_context &io, const download_server_config &config)
     : server(io, config),
@@ -22,14 +23,9 @@ download_server::~download_server() {
   std::cout << this->remote_endpoint << " Destroyed download_server object" << std::endl;
 }
 
-void download_server::serve(boost::asio::io_context &io, const download_server_config &config) {
+download_server_s download_server::create(boost::asio::io_context &io, const download_server_config &config) {
   download_server_s self(new download_server(io, config));
-  if (!self->read_stream.is_open()) {
-    std::cerr << self->remote_endpoint << " Failed to open '" << self->filename << "'" << std::endl;
-    self->tftp_error_code = frame::file_not_found;
-    self->stage           = ds_send_error;
-  }
-  self->sender();
+  return self;
 }
 
 void download_server::sender() {
@@ -220,22 +216,26 @@ upload_server::~upload_server() {
   std::cout << this->remote_endpoint << " Destroyed upload server job" << std::endl;
 }
 
-void upload_server::serve(boost::asio::io_context &io, const upload_server_config &config) {
+upload_server_s upload_server::create(boost::asio::io_context &io, const upload_server_config &config) {
   upload_server_s self(new upload_server(io, config));
-  if (std::filesystem::exists(self->filename)) {
-    std::cerr << self->remote_endpoint << ": '" << self->filename << "' File already exists." << std::endl;
-    self->tftp_error_code = frame::file_already_exists;
-    self->stage           = us_send_error;
+  return self;
+}
+
+void upload_server::start() {
+  if (std::filesystem::exists(this->filename)) {
+    std::cerr << this->remote_endpoint << ": '" << this->filename << "' File already exists." << std::endl;
+    this->tftp_error_code = frame::file_already_exists;
+    this->stage           = us_send_error;
   } else {
-    self->write_stream = std::ofstream(self->filename, std::ios::out | std::ios::binary);
-    if (!self->write_stream.is_open()) {
-      std::cerr << self->remote_endpoint << " Failed to open '" << self->filename << "'" << std::endl;
-      self->tftp_error_code = frame::file_not_found;
-      self->stage           = us_send_error;
+    this->write_stream = std::ofstream(this->filename, std::ios::out | std::ios::binary);
+    if (!this->write_stream.is_open()) {
+      std::cerr << this->remote_endpoint << " Failed to open '" << this->filename << "'" << std::endl;
+      this->tftp_error_code = frame::file_not_found;
+      this->stage           = us_send_error;
     }
   }
-  self->sender();
-}
+  this->sender();
+};
 
 void upload_server::sender() {
   // std::cout << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
@@ -393,11 +393,13 @@ void spin_tftp_server(boost::asio::io_context &io,
   switch (first_frame->get_op_code()) {
   case frame::op_read_request: {
     download_server_config config(remote_endpoint, work_dir, first_frame);
-    download_server::serve(io, config);
+    auto ds = download_server::create(io, config);
+    ds->start();
   } break;
   case frame::op_write_request: {
     upload_server_config config(remote_endpoint, work_dir, first_frame);
-    upload_server::serve(io, config);
+    auto us = upload_server::create(io, config);
+    us->start();
     break;
   }
   default:
