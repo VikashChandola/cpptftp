@@ -41,8 +41,7 @@ public:
                 frame_csc &frame,
                 const ms_duration network_timeout = ms_duration(CONF_NETWORK_TIMEOUT),
                 const uint16_t max_retry_count    = CONF_MAX_RETRY_COUNT,
-                duration_generator_s delay_gen =
-                    std::make_shared<constant_duration_generator>(ms_duration(CONF_CONSTANT_DELAY_DURATION)))
+                duration_generator_s delay_gen    = nullptr)
       : base_config(remote_endpoint, network_timeout, max_retry_count, delay_gen),
         frame(frame),
         filename(work_dir + "/" + frame->get_filename()) {}

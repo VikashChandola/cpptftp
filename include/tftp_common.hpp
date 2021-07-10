@@ -27,7 +27,11 @@ public:
       : remote_endpoint(remote_endpoint),
         network_timeout(network_timeout),
         max_retry_count(max_retry_count),
-        delay_gen(delay_gen) {}
+        delay_gen(delay_gen){
+    if(delay_gen == nullptr){
+      this->delay_gen = std::make_shared<constant_duration_generator>(ms_duration(CONF_CONSTANT_DELAY_DURATION));
+    }
+  }
 
   const udp::endpoint remote_endpoint;
   const ms_duration network_timeout;

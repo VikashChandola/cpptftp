@@ -3,7 +3,7 @@
 // Project configuration file
 
 // Sets whether send should be delayed. This parameter is inteded to be used for simulate network delays.
-// This will make sends to asynchronously wait for some amount of time before initiating send.
+// This will delay send by given amount of time before sending.
 #mesondefine CONF_DELAY_SEND
 
 // Amount of duration application will wait before sending next packet. This parameter is relevant only if
