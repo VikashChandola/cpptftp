@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <iostream>
 
+#include "log.hpp"
+
 using boost::asio::ip::udp;
 using namespace tftp;
 
@@ -14,7 +16,6 @@ server::server(boost::asio::io_context &io, const server_config &config)
 
 download_server::download_server(boost::asio::io_context &io, const download_server_config &config)
     : server(io, config),
-      stage(ds_send_data),
       read_stream(this->filename, std::ios::in | std::ios::binary) {
   std::cout << this->remote_endpoint << " Provisioned download_server object" << std::endl;
 }
@@ -28,63 +29,43 @@ download_server_s download_server::create(boost::asio::io_context &io, const dow
   return self;
 }
 
-void download_server::sender() {
-  // std::cout << this->remote_endpoint << " [" << __func__ << "] " << " Stage :" << this->stage << std::endl;
-  switch (this->stage) {
-  case ds_send_data: {
-    if (this->fill_data_buffer() == false) {
-      this->stage = ds_send_error;
-      this->sender();
-      return;
-    }
-    this->block_number++;
-    this->frame =
-        frame::create_data_frame(&this->data[0],
-                                 std::min(&this->data[this->data_size], &this->data[TFTP_FRAME_MAX_DATA_LEN]),
-                                 this->block_number);
-    this->socket.async_send_to(this->frame->get_asio_buffer(),
-                               this->remote_endpoint,
-                               std::bind(&download_server::sender_cb,
-                                         shared_from_this(),
-                                         std::placeholders::_1,
-                                         std::placeholders::_2));
+void download_server::start() {
+  if (this->server_stage != server_constructed) {
     return;
-  } break;
-  case ds_resend_data: {
-    this->frame =
-        frame::create_data_frame(&this->data[0],
-                                 std::min(&this->data[this->data_size], &this->data[TFTP_FRAME_MAX_DATA_LEN]),
-                                 this->block_number);
-    this->socket.async_send_to(this->frame->get_asio_buffer(),
-                               this->remote_endpoint,
-                               std::bind(&download_server::sender_cb,
-                                         shared_from_this(),
-                                         std::placeholders::_1,
-                                         std::placeholders::_2));
-    return;
-  } break;
-  case ds_send_error: {
-    this->frame = frame::create_error_frame(this->tftp_error_code);
-    this->socket.async_send_to(this->frame->get_asio_buffer(),
-                               this->remote_endpoint,
-                               std::bind(&download_server::sender_cb,
-                                         shared_from_this(),
-                                         std::placeholders::_1,
-                                         std::placeholders::_2));
-
-  } break;
-  default: {
-    std::cerr << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage
-              << " state machine reached invalid stage." << std::endl;
-  } break;
   }
-}
+  if (!this->read_stream.is_open()) {
+    this->server_stage = server_completed;
+    ERROR("[%s] Failed to open %s", to_string(this->remote_endpoint).c_str(), this->filename.c_str());
+    if (std::filesystem::exists(this->filename)) {
+      this->send_error(frame::access_violation);
+    } else {
+      this->send_error(frame::file_not_found);
+    }
+    return;
+  }
+  server_stage = server_running;
+  this->send_data();
+};
+
+void download_server::abort() {
+  if (this->server_stage == server_running) {
+    this->server_stage = server_aborted;
+  }
+};
 
 bool download_server::fill_data_buffer() {
   if (!this->read_stream.is_open()) {
     return false;
   }
-  this->read_stream.read(this->data, TFTP_FRAME_MAX_DATA_LEN);
+  try {
+    this->read_stream.read(this->data, TFTP_FRAME_MAX_DATA_LEN);
+  } catch (const std::ios_base::failure &e) {
+    ERROR("%s Read failure. Error code :%s Explanatory string: %s",
+          to_string(this->remote_endpoint).c_str(),
+          to_string(e.code()).c_str(),
+          to_string(e.what()).c_str());
+    return false;
+  }
   this->data_size = this->read_stream.gcount();
   if (this->read_stream.eof() || this->data_size < TFTP_FRAME_MAX_DATA_LEN) {
     this->is_last_frame = true;
@@ -92,119 +73,119 @@ bool download_server::fill_data_buffer() {
   return true;
 }
 
-void download_server::sender_cb(const boost::system::error_code &error, const std::size_t &bytes_sent) {
-  (void)(bytes_sent);
-  // std::cout << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
-  if (error) {
-    std::cerr << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage
-              << ", error :" << error << std::endl;
-    return;
+void download_server::send_data(const bool &resend) {
+  // If it's resend request then don't update block number and data
+  // Just send whatever we had sent last time
+  if (!resend) {
+    if (this->fill_data_buffer() == false) {
+      this->send_error(frame::undefined_error, "File read operation failed");
+      return;
+    }
+    this->block_number++;
+  } else {
+    INFO("%s Resending block number", to_string(this->remote_endpoint).c_str());
   }
-  switch (this->stage) {
-  case ds_send_data:
-  case ds_resend_data: {
-    this->stage = ds_recv_ack;
-    this->receiver();
-  } break;
-  case ds_send_error: {
-  } break;
-  default: {
-    std::cerr << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage
-              << " state machine reached invalid stage." << std::endl;
-  } break;
-  }
+  this->frame =
+      frame::create_data_frame(&this->data[0],
+                               std::min(&this->data[this->data_size], &this->data[TFTP_FRAME_MAX_DATA_LEN]),
+                               this->block_number);
+  auto send_data_cb = [self = shared_from_this()](const boost::system::error_code &error,
+                                                  const std::size_t &) {
+    if (error) {
+      std::cerr << self->remote_endpoint << "Failed to send data  error :" << error << std::endl;
+    }
+    self->receive_ack();
+  };
+  this->do_send(this->remote_endpoint, send_data_cb);
 }
 
-void download_server::receiver() {
-  // std::cout << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
-  switch (this->stage) {
-  case ds_recv_ack: {
-    this->frame = frame::create_empty_frame();
-    this->socket.async_receive_from(this->frame->get_asio_buffer(),
-                                    this->receive_endpoint,
-                                    std::bind(&download_server::receiver_cb,
-                                              shared_from_this(),
-                                              std::placeholders::_1,
-                                              std::placeholders::_2));
-    this->timer.expires_after(this->network_timeout);
-    this->timer.async_wait([&](const boost::system::error_code &error) {
-      if (error == boost::asio::error::operation_aborted) {
-        return;
-      }
-      this->stage = ds_recv_timeout;
-      std::cout << this->remote_endpoint << " timed out on receive." << std::endl;
-      this->socket.cancel();
-    });
-    // Add timer related stuff here
-  } break;
-  default: {
-  } break;
-  }
+void download_server::receive_ack() {
+  this->frame = frame::create_empty_frame();
+  this->socket.async_receive_from(this->frame->get_asio_buffer(),
+                                  this->receive_endpoint,
+                                  std::bind(&download_server::receive_ack_cb,
+                                            shared_from_this(),
+                                            std::placeholders::_1,
+                                            std::placeholders::_2));
+  this->timer.expires_after(this->network_timeout);
+  this->timer.async_wait([&](const boost::system::error_code &error) {
+    if (error == boost::asio::error::operation_aborted) {
+      return;
+    }
+    std::cout << this->remote_endpoint << " timed out on receive." << std::endl;
+    this->socket.cancel();
+  });
 }
 
-void download_server::receiver_cb(const boost::system::error_code &error, const std::size_t &bytes_received) {
+void download_server::receive_ack_cb(const boost::system::error_code &error,
+                                     const std::size_t &bytes_received) {
+  this->timer.cancel();
   if (error && error != boost::asio::error::operation_aborted) {
     std::cerr << this->remote_endpoint << " [" << __func__ << "] error :" << error << std::endl;
     return;
   }
-  this->timer.cancel();
-  switch (this->stage) {
-  case ds_recv_ack: {
-    this->retry_count = 0;
-    if (this->receive_endpoint != this->remote_endpoint) {
-      // somebody is fucking up on this udp port
-      std::cerr << this->remote_endpoint << " [" << __func__ << "] Received response from wrong endpoint ["
-                << this->receive_endpoint << "]" << std::endl;
-      this->receiver();
-      return;
-    }
-    try {
-      this->frame->resize(bytes_received);
-      this->frame->parse_frame();
-    } catch (framing_exception &e) {
-      // bad frame, check again
-      std::cerr << this->remote_endpoint << " [" << __func__ << "] Failed to parse ack frame"
-                << " Error :" << e.what() << std::endl;
-      this->receiver();
-      return;
-    }
-    if (this->frame->get_block_number() != this->block_number) {
-      // received ack for different block number, discard it
-      this->receiver();
-      return;
-    }
-    if (this->is_last_frame) {
-      std::cout << this->remote_endpoint << " [" << __func__ << "] has been served." << std::endl;
-      // congratualtions, 'this' have served it's purpose, time to die now
-      return;
-    }
-    // Everything is good, time to send new data frame to client
-    this->stage = ds_send_data;
-    this->sender();
+  if (this->server_stage == server_aborted) {
+    // User requested operation abort
+    this->exit(error::no_error);
     return;
-  } break;
-  case ds_recv_timeout: {
-    std::cout << this->remote_endpoint << " [" << __func__
-              << "] Resending block number :" << this->block_number << std::endl;
-    // no response from client, may be packet got lost. Retry
-    if (this->retry_count++ != download_server::max_retry_count) {
-      this->stage = ds_resend_data;
-      this->sender();
-      return;
-    } else {
-      // ok, enough retries, client is dead. Let's jump of the cliff
-      std::cerr << this->remote_endpoint << " [" << __func__ << "] Failed to receive ack " << std::endl;
-      return;
-    }
-    return;
-  } break;
-  default: {
-    std::cerr << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage
-              << " state machine reached invalid stage." << std::endl;
-    return;
-  } break;
   }
+  if (error == boost::asio::error::operation_aborted) {
+    WARN("%s, Timed out while waiting while wait for response", to_string(this->remote_endpoint).c_str());
+    if (this->retry_count++ >= this->max_retry_count) {
+      this->exit(error::receive_timeout);
+      return;
+    }
+    this->send_data(true);
+    return;
+  }
+  if (this->receive_endpoint != this->remote_endpoint) {
+    // somebody is fucking up on this udp port
+    WARN("%s Received data from unknown endpoint %s. Message is Rejected",
+         to_string(this->remote_endpoint).c_str(),
+         to_string(this->receive_endpoint).c_str());
+    if (this->retry_count++ >= this->max_retry_count) {
+      this->exit(error::network_interference);
+      return;
+    }
+    this->receive_ack();
+    return;
+  }
+  try {
+    this->frame->resize(bytes_received);
+    this->frame->parse_frame();
+  } catch (framing_exception &e) {
+    // bad frame, check again. This is not considered for retry count but neither do we reset it
+    std::cerr << this->remote_endpoint << " [" << __func__ << "] Failed to parse ack frame"
+              << " Error :" << e.what() << std::endl;
+    this->receive_ack();
+    return;
+  }
+  if (this->frame->get_block_number() != this->block_number) {
+    // received ack for different block number, discard it and wait for our block number
+    this->receive_ack();
+    return;
+  }
+  // Everything was good so reset counter and move to next step
+  this->retry_count = 0;
+  if (this->is_last_frame) {
+    std::cout << this->remote_endpoint << " [" << __func__ << "] has been served." << std::endl;
+    // congratualtions, 'this' have served it's purpose, time to die now
+    this->exit(error::no_error);
+    return;
+  }
+  // Everything is good, time to send new data frame to client
+  this->send_data();
 }
+
+void download_server::send_error(const frame::error_code &e_code, const std::string &message) {
+  this->frame = frame::create_error_frame(e_code, message);
+  this->socket.async_send_to(
+      this->frame->get_asio_buffer(),
+      this->remote_endpoint,
+      [this](const boost::system::error_code &, const std::size_t &) { this->exit(error::disk_io_error); });
+}
+
+//-----------------------------------------------------------------------------
 
 upload_server::upload_server(boost::asio::io_context &io, const upload_server_config &config)
     : server(io, config),

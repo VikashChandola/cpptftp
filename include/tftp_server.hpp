@@ -73,42 +73,22 @@ protected:
 class download_server : public server, public std::enable_shared_from_this<download_server> {
 public:
   static download_server_s create(boost::asio::io_context &io, const download_server_config &config);
-  void start() override {
-    if (this->server_stage != server_constructed) {
-      return;
-    }
-    server_stage = server_running;
-    if (!this->read_stream.is_open()) {
-      std::cerr << this->remote_endpoint << " Failed to open '" << this->filename << "'" << std::endl;
-      this->tftp_error_code = frame::file_not_found;
-      this->stage           = ds_send_error;
-    }
-    this->sender();
-  };
-  void abort() override {
-    if (this->server_stage == server_running) {
-      this->server_stage = server_aborted;
-    }
-  };
+
+  void start() override;
+  void abort() override;
   void exit(error_code e) override { (void)(e); };
 
   ~download_server() override;
 
 private:
   download_server(boost::asio::io_context &io, const download_server_config &config);
-  void sender();
-  void sender_cb(const boost::system::error_code &e, const std::size_t &bytes_received);
-  void receiver();
-  void receiver_cb(const boost::system::error_code &e, const std::size_t &bytes_sent);
-  bool fill_data_buffer();
 
-  enum {
-    ds_send_data,
-    ds_resend_data,
-    ds_recv_ack,
-    ds_send_error,
-    ds_recv_timeout,
-  } stage;
+  void send_data(const bool &resend = false);
+  void send_error(const frame::error_code &, const std::string &message = "");
+  void receive_ack();
+  void receive_ack_cb(const boost::system::error_code &error, const std::size_t &bytes_received);
+
+  bool fill_data_buffer();
 
   std::ifstream read_stream;
   char data[TFTP_FRAME_MAX_DATA_LEN];
