@@ -6,6 +6,10 @@
 // This will delay send by given amount of time before sending.
 #mesondefine CONF_DELAY_SEND
 
+// Enables extensive logging. This prints out execution flow in console. This is different from syslog.
+// These logs are not sent to syslog
+#mesondefine CONF_EXTENSIVE_DEBUG_LOG
+
 // Amount of duration application will wait before sending next packet. This parameter is relevant only if
 // CONF_DELAY_SEND is enabled
 #mesondefine CONF_CONSTANT_DELAY_DURATION
