@@ -3,6 +3,7 @@
 #include <boost/asio.hpp>
 
 #include "duration_generator.hpp"
+#include "log.hpp"
 #include "project_config.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
@@ -27,9 +28,10 @@ public:
       : remote_endpoint(remote_endpoint),
         network_timeout(network_timeout),
         max_retry_count(max_retry_count),
-        delay_gen(delay_gen){
-    if(delay_gen == nullptr){
-      this->delay_gen = std::make_shared<constant_duration_generator>(ms_duration(CONF_CONSTANT_DELAY_DURATION));
+        delay_gen(delay_gen) {
+    if (delay_gen == nullptr) {
+      this->delay_gen =
+          std::make_shared<constant_duration_generator>(ms_duration(CONF_CONSTANT_DELAY_DURATION));
     }
   }
 
@@ -63,7 +65,9 @@ protected:
   void do_send(const udp::endpoint &endpoint,
                std::function<void(const boost::system::error_code &, const std::size_t)> cb) {
 #ifdef CONF_DELAY_SEND
-    this->delay_timer.expires_after(this->delay_gen->get());
+    auto delay = this->delay_gen->get();
+    XDEBUG("Executing artificial delay of :%lu ms", delay.count());
+    this->delay_timer.expires_after(delay);
     this->delay_timer.async_wait([&, cb](const boost::system::error_code &) {
       this->socket.async_send_to(this->frame->get_asio_buffer(), endpoint, cb);
     });

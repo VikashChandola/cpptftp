@@ -79,6 +79,7 @@ void download_client::exit(error_code e) {
 }
 
 void download_client::send_request() {
+  XDEBUG("Sending request to download file %s", this->remote_file_name.c_str());
   this->frame = frame::create_read_request_frame(this->remote_file_name);
   this->do_send(this->remote_endpoint,
                 std::bind(&download_client::send_request_cb,
@@ -100,6 +101,7 @@ void download_client::send_request_cb(const boost::system::error_code &error, co
 void download_client::send_ack() { this->send_ack_for_block_number(this->block_number); }
 
 void download_client::send_ack_for_block_number(uint16_t block_num) {
+  XDEBUG("Sending ack for block number %u", block_num);
   this->frame = frame::create_ack_frame(block_num);
   this->do_send(this->server_tid,
                 std::bind(&download_client::send_ack_cb,
@@ -123,6 +125,7 @@ void download_client::send_ack_cb(const boost::system::error_code &error, const 
 }
 
 void download_client::receive_data() {
+  XDEBUG("Waiting for block number %u", this->block_number + 1);
   this->frame = frame::create_empty_frame();
   this->socket.async_receive_from(this->frame->get_asio_buffer(),
                                   this->receive_tid,
@@ -147,6 +150,7 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     return;
   }
   if (error == boost::asio::error::operation_aborted) {
+    XDEBUG("Receive timed out for block number %u", this->block_number + 1);
     WARN("Timed out while waiting for response on %s", to_string(this->socket.local_endpoint()).c_str());
     if (this->retry_count++ >= this->max_retry_count) {
       this->exit(error::receive_timeout);
@@ -180,13 +184,16 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     this->frame->parse_frame();
     itr_pair = this->frame->get_data_iterator();
   } catch (framing_exception &e) {
+    // This could happen on packet fragmentation
     WARN("Failed to parse response from %s", to_string(this->receive_tid).c_str());
     this->receive_data();
     return;
   }
+  XDEBUG("Received block number %u", this->frame->get_block_number());
   if (this->block_number + 1 != this->frame->get_block_number()) {
     WARN("Expected blocks number %u got %u", this->block_number + 1, this->frame->get_block_number());
     WARN("Block %u is rejected", this->frame->get_block_number());
+    // May be last ack didn't reach upto remote end
     this->send_ack_for_block_number(this->frame->get_block_number());
     return;
   }
@@ -197,6 +204,7 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     this->exit(error::disk_io_error);
     return;
   }
+  this->retry_count = 0;
   if (itr_pair.second - itr_pair.first != this->window_size) {
     this->is_last_block = true;
   }
