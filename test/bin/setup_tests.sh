@@ -17,7 +17,7 @@ for blocks in $(seq 0 21845 65535)
     echo "mv $client_dir/$sample $client_dir/client_$sample" >> $client_tests
   done
 
-for size in 100 513
+for size in 100 513 512001
   do
     sample=sample_$size
     all_samples="$all_samples $sample"
