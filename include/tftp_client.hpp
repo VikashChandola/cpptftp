@@ -102,7 +102,6 @@ private:
   const std::string remote_file_name;
   const std::string local_file_name;
   client_completion_callback callback;
-  enum { request_frame, ack_frame } last_send;
   enum { client_constructed, client_running, client_completed, client_aborted } client_stage;
   // indicator that now we are on last block of transaction
   bool is_last_block;
