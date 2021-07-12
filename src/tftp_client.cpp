@@ -182,9 +182,16 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
   try {
     this->frame->resize(bytes_received);
     this->frame->parse_frame();
+    if (this->frame->get_op_code() != frame::op_data) {
+      WARN("Server responded with error code :%u, message :%s",
+           this->frame->get_error_code(),
+           this->frame->get_error_message().c_str());
+      this->exit(this->frame->get_error_code());
+      return;
+    }
     itr_pair = this->frame->get_data_iterator();
   } catch (framing_exception &e) {
-    // This could happen on packet fragmentation
+    // This could happen on packet fragmentation or bad packet
     WARN("Failed to parse response from %s", to_string(this->receive_tid).c_str());
     this->receive_data();
     return;
