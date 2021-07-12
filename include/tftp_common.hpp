@@ -45,7 +45,13 @@ class base_worker {
 public:
   virtual ~base_worker(){};
   virtual void start() = 0;
-  virtual void abort() = 0;
+  virtual void abort() {
+    if (this->worker_stage != worker_running) {
+      DEBUG("Abort request rejected. Only running worker can be aborted.");
+      return;
+    }
+    this->worker_stage = worker_aborted;
+  };
 
 protected:
   base_worker(boost::asio::io_context &io, const base_config &config)
@@ -57,7 +63,8 @@ protected:
         timer(io),
         delay_timer(io),
         block_number(0),
-        retry_count(0) {
+        retry_count(0),
+        worker_stage(worker_constructed) {
     this->socket.open(udp::v4());
   }
   virtual void exit(error_code e) = 0;
@@ -80,13 +87,13 @@ protected:
   const ms_duration network_timeout;
   const uint16_t max_retry_count;
   duration_generator_s delay_gen;
-  uint16_t window_size = 512;
 
   udp::socket socket;
   boost::asio::steady_timer timer;
   boost::asio::steady_timer delay_timer;
   uint16_t block_number;
   uint16_t retry_count;
+  enum { worker_constructed, worker_running, worker_completed, worker_aborted } worker_stage;
   frame_s frame;
   std::fstream file_handle;
 };

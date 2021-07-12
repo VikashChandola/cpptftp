@@ -33,9 +33,9 @@ class download_client_config;
 class download_client;
 typedef std::shared_ptr<download_client> download_client_s;
 
-class client_uploader_config;
-class client_uploader;
-typedef std::shared_ptr<client_uploader> client_uploader_s;
+class upload_client_config;
+class upload_client;
+typedef std::shared_ptr<upload_client> upload_client_s;
 
 class client_config : public base_config {
 public:
@@ -60,8 +60,35 @@ public:
   using client_config::client_config;
 };
 
+class upload_client_config : public client_config {
+public:
+  using client_config::client_config;
+};
+
 class client : public base_worker {
-  using base_worker::base_worker;
+public:
+  client(boost::asio::io_context &io, const client_config &config)
+      : base_worker(io, config),
+        remote_file_name(config.remote_file_name),
+        local_file_name(config.local_file_name),
+        callback(config.callback) {
+    if (this->server_tid.port() != 0 && this->receive_tid.port() != 0) {
+      /* server_tid and receive_tid must be initialized with 0 by default constructors otherwise it won't be
+       * possible to verify remote endpoint(refer receiver_x_cb method). Current constructors of asio
+       * initialize with port as 0. This assert is to ensure that any future change in default constructor
+       * gets identified quickly.
+       */
+      ERROR("server tids are not zero. client can not function");
+      std::exit(1);
+    }
+  }
+
+protected:
+  const std::string remote_file_name;
+  const std::string local_file_name;
+  client_completion_callback callback;
+  udp::endpoint server_tid;
+  udp::endpoint receive_tid;
 };
 
 class download_client : public std::enable_shared_from_this<download_client>, public client {
@@ -69,7 +96,6 @@ public:
   static download_client_s create(boost::asio::io_context &io, const download_client_config &config);
   ~download_client(){};
   void start() override;
-  void abort() override;
 
 private:
   download_client(boost::asio::io_context &io, const download_client_config &config);
@@ -80,7 +106,7 @@ private:
   void send_ack_cb(const boost::system::error_code &error, const std::size_t bytes_sent);
   void receive_data();
   void receive_data_cb(const boost::system::error_code &error, const std::size_t bytes_received);
-  void exit(error_code e);
+  void exit(error_code e) override;
 
   template <typename T>
   bool write(T itr, const T &itr_end) noexcept {
@@ -99,27 +125,21 @@ private:
     return true;
   }
 
-  const std::string remote_file_name;
-  const std::string local_file_name;
-  client_completion_callback callback;
-  enum { client_constructed, client_running, client_completed, client_aborted } client_stage;
   // indicator that now we are on last block of transaction
   bool is_last_block;
   // indicated whether file is opened. This is needed for lazy file opening
   bool is_file_open;
-  udp::endpoint server_tid;
-  udp::endpoint receive_tid;
 };
 
-class client_uploader : public std::enable_shared_from_this<client_uploader> {
+class upload_client : public std::enable_shared_from_this<upload_client> {
 public:
-  static client_uploader_s create(boost::asio::io_context &io,
-                                  const std::string &file_name,
-                                  const udp::endpoint &remote_endpoint,
-                                  std::unique_ptr<std::istream> u_in_stream,
-                                  client_completion_callback upload_callback) {
-    client_uploader_s self(
-        new client_uploader(io, file_name, remote_endpoint, std::move(u_in_stream), upload_callback));
+  static upload_client_s create(boost::asio::io_context &io,
+                                const std::string &file_name,
+                                const udp::endpoint &remote_endpoint,
+                                std::unique_ptr<std::istream> u_in_stream,
+                                client_completion_callback upload_callback) {
+    upload_client_s self(
+        new upload_client(io, file_name, remote_endpoint, std::move(u_in_stream), upload_callback));
     self->sender(boost::system::error_code(), 0);
     return self;
   }
@@ -131,11 +151,11 @@ private:
 
   void update_stage(const boost::system::error_code &error, const std::size_t bytes_transacted);
 
-  client_uploader(boost::asio::io_context &io,
-                  const std::string &file_name,
-                  const udp::endpoint &remote_endpoint,
-                  std::unique_ptr<std::istream> u_in_stream,
-                  client_completion_callback download_callback);
+  upload_client(boost::asio::io_context &io,
+                const std::string &file_name,
+                const udp::endpoint &remote_endpoint,
+                std::unique_ptr<std::istream> u_in_stream,
+                client_completion_callback download_callback);
 
   enum upload_stage { init, upload_request, wait_ack, upload_data, exit } stage;
 
@@ -202,11 +222,11 @@ public:
   void upload_file(const std::string &remote_file_name,
                    std::string local_file_name,
                    client_completion_callback upload_callback) {
-    client_uploader::create(this->io,
-                            remote_file_name,
-                            this->remote_endpoint,
-                            std::make_unique<std::ifstream>(local_file_name, std::ios::binary | std::ios::in),
-                            upload_callback);
+    upload_client::create(this->io,
+                          remote_file_name,
+                          this->remote_endpoint,
+                          std::make_unique<std::ifstream>(local_file_name, std::ios::binary | std::ios::in),
+                          upload_callback);
   }
 
 private:
