@@ -108,12 +108,12 @@ void download_server::receive_ack() {
                                             std::placeholders::_1,
                                             std::placeholders::_2));
   this->timer.expires_after(this->network_timeout);
-  this->timer.async_wait([&](const boost::system::error_code &error) {
+  this->timer.async_wait([self = shared_from_this()](const boost::system::error_code &error) {
     if (error == boost::asio::error::operation_aborted) {
       return;
     }
-    std::cout << this->remote_endpoint << " timed out on receive." << std::endl;
-    this->socket.cancel();
+    std::cout << self->remote_endpoint << " timed out on receive." << std::endl;
+    self->socket.cancel();
   });
 }
 
@@ -182,7 +182,9 @@ void download_server::send_error(const frame::error_code &e_code, const std::str
   this->socket.async_send_to(
       this->frame->get_asio_buffer(),
       this->remote_endpoint,
-      [this](const boost::system::error_code &, const std::size_t &) { this->exit(error::disk_io_error); });
+      [self = shared_from_this()](const boost::system::error_code &, const std::size_t &) {
+        self->exit(error::disk_io_error);
+      });
 }
 
 //-----------------------------------------------------------------------------
