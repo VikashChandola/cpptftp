@@ -26,6 +26,7 @@ const error_code state_machine_broke     = 106;
 const error_code network_interference    = 107;
 // Failed to write data to disk
 const error_code disk_io_error           = 108;
+const error_code user_requested_abort    = 109;
 
 //-------------------------------------------------------------------------------------------------
 // Boost Asio error codes are bubbled up to user by adding to this base

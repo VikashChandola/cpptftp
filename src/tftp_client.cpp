@@ -146,7 +146,7 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
                                       const std::size_t bytes_received) {
   if (this->client_stage == client_aborted) {
     // Abort is happening because of user request
-    this->exit(error::boost_asio_error_base + error.value());
+    this->exit(error::user_requested_abort);
     return;
   }
   if (error == boost::asio::error::operation_aborted) {
