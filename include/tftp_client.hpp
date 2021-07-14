@@ -282,4 +282,9 @@ private:
  * jugglery. Some places where two tasks are unavoidable is, when we are receiving some data with timeout.
  * Here both operaitons will have to fired parlley. There is no other way. (May be async_receive methods could
  * have helped with timeout arguments here)
+ * ---------------------------------------------07/14/2021---------------------------------------------
+ * 8. Whole design was top to bottom code reuse with inheritance. This has lead to classical horizontal
+ * code reuse problem. Code composition should have been taken into design consideration ie stratergy pattern.
+ * download_client and upload_server shares a lot of code but they can't share it since it has to be placed in
+ * base_worker which is not right place.
  */
