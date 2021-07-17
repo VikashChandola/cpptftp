@@ -14,6 +14,7 @@
 #include "tftp_common.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
+#include "file_io.hpp"
 
 using boost::asio::ip::udp;
 
@@ -87,9 +88,7 @@ private:
   void receive_ack();
   void receive_ack_cb(const boost::system::error_code &error, const std::size_t &bytes_received);
 
-  bool fill_data_buffer();
-
-  std::ifstream read_stream;
+  fileio::reader read_handle;
   char data[TFTP_FRAME_MAX_DATA_LEN];
   std::streamsize data_size;
 };

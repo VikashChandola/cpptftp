@@ -16,7 +16,7 @@ server::server(boost::asio::io_context &io, const server_config &config)
 
 download_server::download_server(boost::asio::io_context &io, const download_server_config &config)
     : server(io, config),
-      read_stream(this->filename, std::ios::in | std::ios::binary) {
+      read_handle(this->filename) {
   std::cout << this->remote_endpoint << " Provisioned download_server object" << std::endl;
 }
 
@@ -33,7 +33,7 @@ void download_server::start() {
   if (this->server_stage != server_constructed) {
     return;
   }
-  if (!this->read_stream.is_open()) {
+  if (!this->read_handle.is_open()) {
     this->server_stage = server_completed;
     ERROR("[%s] Failed to open %s", to_string(this->remote_endpoint).c_str(), this->filename.c_str());
     if (std::filesystem::exists(this->filename)) {
@@ -53,34 +53,17 @@ void download_server::abort() {
   }
 };
 
-bool download_server::fill_data_buffer() {
-  if (!this->read_stream.is_open()) {
-    return false;
-  }
-  try {
-    this->read_stream.read(this->data, TFTP_FRAME_MAX_DATA_LEN);
-  } catch (const std::ios_base::failure &e) {
-    ERROR("%s Read failure. Error code :%s Explanatory string: %s",
-          to_string(this->remote_endpoint).c_str(),
-          to_string(e.code()).c_str(),
-          to_string(e.what()).c_str());
-    return false;
-  }
-  this->data_size = this->read_stream.gcount();
-  if (this->read_stream.eof() || this->data_size < TFTP_FRAME_MAX_DATA_LEN) {
-    this->is_last_frame = true;
-  }
-  return true;
-}
-
 void download_server::send_data(const bool &resend) {
   // If it's resend request then don't update block number and data
   // Just send whatever we had sent last time
   if (!resend) {
-    if (this->fill_data_buffer() == false) {
+    if (this->read_handle.read_buffer(&this->data[0],
+                                      &this->data[TFTP_FRAME_MAX_DATA_LEN],
+                                      this->data_size) == false) {
       this->send_error(frame::undefined_error, "File read operation failed");
       return;
     }
+    is_last_frame = (TFTP_FRAME_MAX_DATA_LEN != this->data_size);
     this->block_number++;
   } else {
     INFO("%s Resending block number", to_string(this->remote_endpoint).c_str());
