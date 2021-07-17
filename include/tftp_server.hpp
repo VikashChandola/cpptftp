@@ -67,7 +67,6 @@ protected:
   std::string filename;
   bool is_last_frame;
   frame::error_code tftp_error_code;
-  enum { server_constructed, server_running, server_completed, server_aborted } server_stage;
 };
 
 class download_server : public server, public std::enable_shared_from_this<download_server> {
@@ -75,7 +74,6 @@ public:
   static download_server_s create(boost::asio::io_context &io, const download_server_config &config);
 
   void start() override;
-  void abort() override;
   void exit(error_code e) override { (void)(e); };
 
   ~download_server() override;

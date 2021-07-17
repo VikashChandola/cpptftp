@@ -36,11 +36,11 @@ download_client_s download_client::create(boost::asio::io_context &io, const dow
 }
 
 void download_client::start() {
-  if (this->worker_stage != worker_constructed) {
+  if (this->get_stage() != worker_constructed) {
     NOTICE("Start request rejected. Start can only be requested for freshly constructed objects.");
     return;
   }
-  this->worker_stage = worker_running;
+  this->set_stage_running();
   DEBUG("Downloading file %s from server hosted at %s",
         this->local_file_name.c_str(),
         to_string(this->remote_endpoint).c_str());
@@ -48,8 +48,8 @@ void download_client::start() {
 }
 
 void download_client::exit(error_code e) {
-  if (this->worker_stage != worker_completed) {
-    this->worker_stage = worker_completed;
+  if (this->get_stage() != worker_completed) {
+    this->set_stage_completed();
   } else {
     ERROR("Exit rejected. There can be only one exit");
     return;
@@ -107,7 +107,7 @@ void download_client::receive_data() {
 
 void download_client::receive_data_cb(const boost::system::error_code &error,
                                       const std::size_t bytes_received) {
-  if (this->worker_stage == worker_aborted) {
+  if (this->get_stage() == worker_aborted) {
     // Abort is happening because of user request
     this->exit(error::user_requested_abort);
     return;

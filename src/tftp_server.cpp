@@ -11,8 +11,7 @@ using namespace tftp;
 server::server(boost::asio::io_context &io, const server_config &config)
     : base_worker(io, config),
       filename(config.filename),
-      is_last_frame(false),
-      server_stage(server_constructed) {}
+      is_last_frame(false) {}
 
 download_server::download_server(boost::asio::io_context &io, const download_server_config &config)
     : server(io, config),
@@ -32,11 +31,11 @@ download_server_s download_server::create(boost::asio::io_context &io, const dow
 }
 
 void download_server::start() {
-  if (this->server_stage != server_constructed) {
+  if (this->get_stage() != worker_constructed) {
     return;
   }
+  this->set_stage_running();
   if (!this->read_handle.is_open()) {
-    this->server_stage = server_completed;
     ERROR("[%s] Failed to open %s", to_string(this->remote_endpoint).c_str(), this->filename.c_str());
     if (std::filesystem::exists(this->filename)) {
       this->send_error(frame::access_violation);
@@ -45,14 +44,7 @@ void download_server::start() {
     }
     return;
   }
-  server_stage = server_running;
   this->send_data();
-};
-
-void download_server::abort() {
-  if (this->server_stage == server_running) {
-    this->server_stage = server_aborted;
-  }
 };
 
 void download_server::send_data(const bool &resend) {
@@ -99,7 +91,7 @@ void download_server::receive_ack_cb(const boost::system::error_code &error,
     std::cerr << this->remote_endpoint << " [" << __func__ << "] error :" << error << std::endl;
     return;
   }
-  if (this->server_stage == server_aborted) {
+  if (this->get_stage() == worker_aborted) {
     // User requested operation abort
     this->exit(error::no_error);
     return;

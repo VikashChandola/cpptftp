@@ -73,7 +73,7 @@ public:
         local_file_name(config.local_file_name),
         callback(config.callback) {
     if (this->server_tid.port() != 0) {
-      /* server_tid and must be initialized with 0 by default constructors otherwise it won't be
+      /* server_tid must be initialized with 0 by default constructors otherwise it won't be
        * possible to verify remote endpoint(refer receiver_x_cb method). Current constructors of asio
        * initialize with port as 0. This assert is to ensure that any future change in default constructor
        * gets identified quickly.

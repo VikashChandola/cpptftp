@@ -11,7 +11,6 @@
 
 namespace tftp {
 using boost::asio::ip::udp;
-typedef std::function<void(error_code)> client_completion_callback;
 
 class base_config {
 public:
@@ -47,13 +46,18 @@ public:
     this->worker_stage = worker_aborted;
   };
 
+  enum run_stage { worker_constructed, worker_running, worker_completed, worker_aborted };
+
+  run_stage get_stage() { return this->worker_stage; }
+  void set_stage_running() { this->worker_stage = worker_running; }
+
+  void set_stage_completed() { this->worker_stage = worker_completed; }
+
 protected:
   base_worker(boost::asio::io_context &io, const base_config &config)
       : remote_endpoint(config.remote_endpoint),
-        network_timeout(config.network_timeout),
         max_retry_count(config.max_retry_count),
         socket(io),
-        timer(io),
         block_number(0),
         retry_count(0),
         worker_stage(worker_constructed) {
@@ -62,15 +66,15 @@ protected:
   virtual void exit(error_code e) = 0;
 
   const udp::endpoint remote_endpoint;
-  const ms_duration network_timeout;
   const uint16_t max_retry_count;
 
   udp::socket socket;
-  boost::asio::steady_timer timer;
   uint16_t block_number;
   uint16_t retry_count;
-  enum { worker_constructed, worker_running, worker_completed, worker_aborted } worker_stage;
   frame_s frame;
+
+private:
+  run_stage worker_stage;
 };
 
 } // namespace tftp
