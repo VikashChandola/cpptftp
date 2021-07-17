@@ -95,7 +95,6 @@ protected:
   uint16_t retry_count;
   enum { worker_constructed, worker_running, worker_completed, worker_aborted } worker_stage;
   frame_s frame;
-  std::fstream file_handle;
 };
 
 } // namespace tftp

@@ -11,6 +11,7 @@
 #include <memory>
 
 #include "duration_generator.hpp"
+#include "file_io.hpp"
 #include "log.hpp"
 #include "project_config.hpp"
 #include "tftp_common.hpp"
@@ -108,27 +109,9 @@ private:
   void receive_data_cb(const boost::system::error_code &error, const std::size_t bytes_received);
   void exit(error_code e) override;
 
-  template <typename T>
-  bool write(T itr, const T &itr_end) noexcept {
-    if (!this->is_file_open) {
-      this->file_handle  = std::fstream(this->local_file_name, std::ios::out);
-      this->is_file_open = true;
-    }
-    if (!this->file_handle.is_open()) {
-      ERROR("Failed to open file %s for writting", this->local_file_name.c_str());
-      return false;
-    }
-    while (itr != itr_end) {
-      this->file_handle << *itr;
-      itr++;
-    }
-    return true;
-  }
-
   // indicator that now we are on last block of transaction
   bool is_last_block;
-  // indicated whether file is opened. This is needed for lazy file opening
-  bool is_file_open;
+  fileio::writer write_handle;
 };
 
 class upload_client : public std::enable_shared_from_this<upload_client> {

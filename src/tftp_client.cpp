@@ -21,7 +21,7 @@ using namespace tftp;
 download_client::download_client(boost::asio::io_context &io, const download_client_config &config)
     : client(io, config),
       is_last_block(false),
-      is_file_open(false) {
+      write_handle(config.local_file_name) {
   DEBUG("Setting up client to download remote file [%s] from [%s] to [%s]",
         this->remote_file_name.c_str(),
         to_string(this->remote_endpoint).c_str(),
@@ -182,7 +182,7 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     return;
   }
   this->block_number = this->frame->get_block_number();
-  if (!this->write(itr_pair.first, itr_pair.second)) {
+  if (!this->write_handle.write_buffer(itr_pair.first, itr_pair.second)) {
     // Failed to write to file. Fatal error
     ERROR("IO Error on file %s. Aborting download", this->local_file_name.c_str());
     this->exit(error::disk_io_error);
