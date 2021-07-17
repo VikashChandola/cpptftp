@@ -16,7 +16,9 @@ server::server(boost::asio::io_context &io, const server_config &config)
 
 download_server::download_server(boost::asio::io_context &io, const download_server_config &config)
     : server(io, config),
-      read_handle(this->filename) {
+      read_handle(this->filename),
+      receiver(io, this->socket, config.network_timeout),
+      sender(io, this->socket, config.delay_gen) {
   std::cout << this->remote_endpoint << " Provisioned download_server object" << std::endl;
 }
 
@@ -79,30 +81,20 @@ void download_server::send_data(const bool &resend) {
     }
     self->receive_ack();
   };
-  this->do_send(this->remote_endpoint, send_data_cb);
+  this->sender.async_send(this->frame->get_asio_buffer(), this->remote_endpoint, send_data_cb);
 }
 
 void download_server::receive_ack() {
   this->frame = frame::create_empty_frame();
-  this->socket.async_receive_from(this->frame->get_asio_buffer(),
-                                  this->receive_endpoint,
-                                  std::bind(&download_server::receive_ack_cb,
-                                            shared_from_this(),
-                                            std::placeholders::_1,
-                                            std::placeholders::_2));
-  this->timer.expires_after(this->network_timeout);
-  this->timer.async_wait([self = shared_from_this()](const boost::system::error_code &error) {
-    if (error == boost::asio::error::operation_aborted) {
-      return;
-    }
-    std::cout << self->remote_endpoint << " timed out on receive." << std::endl;
-    self->socket.cancel();
-  });
+  this->receiver.async_receive(this->frame->get_asio_buffer(),
+                               std::bind(&download_server::receive_ack_cb,
+                                         shared_from_this(),
+                                         std::placeholders::_1,
+                                         std::placeholders::_2));
 }
 
 void download_server::receive_ack_cb(const boost::system::error_code &error,
                                      const std::size_t &bytes_received) {
-  this->timer.cancel();
   if (error && error != boost::asio::error::operation_aborted) {
     std::cerr << this->remote_endpoint << " [" << __func__ << "] error :" << error << std::endl;
     return;
@@ -121,11 +113,11 @@ void download_server::receive_ack_cb(const boost::system::error_code &error,
     this->send_data(true);
     return;
   }
-  if (this->receive_endpoint != this->remote_endpoint) {
+  if (this->receiver.get_receive_endpoint() != this->remote_endpoint) {
     // somebody is fucking up on this udp port
     WARN("%s Received data from unknown endpoint %s. Message is Rejected",
          to_string(this->remote_endpoint).c_str(),
-         to_string(this->receive_endpoint).c_str());
+         to_string(this->receiver.get_receive_endpoint()).c_str());
     if (this->retry_count++ >= this->max_retry_count) {
       this->exit(error::network_interference);
       return;
@@ -162,7 +154,7 @@ void download_server::receive_ack_cb(const boost::system::error_code &error,
 
 void download_server::send_error(const frame::error_code &e_code, const std::string &message) {
   this->frame = frame::create_error_frame(e_code, message);
-  this->socket.async_send_to(
+  this->sender.async_send(
       this->frame->get_asio_buffer(),
       this->remote_endpoint,
       [self = shared_from_this()](const boost::system::error_code &, const std::size_t &) {

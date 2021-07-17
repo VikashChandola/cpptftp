@@ -10,11 +10,12 @@
 #include <iostream>
 #include <memory>
 
+#include "file_io.hpp"
+#include "network_io.hpp"
 #include "project_config.hpp"
 #include "tftp_common.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
-#include "file_io.hpp"
 
 using boost::asio::ip::udp;
 
@@ -91,6 +92,8 @@ private:
   fileio::reader read_handle;
   char data[TFTP_FRAME_MAX_DATA_LEN];
   std::streamsize data_size;
+  nio::receiver receiver;
+  nio::sender sender;
 };
 
 class upload_server : public server, public std::enable_shared_from_this<upload_server> {

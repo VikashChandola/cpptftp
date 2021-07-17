@@ -7,17 +7,11 @@
 #include "project_config.hpp"
 #include "tftp_error_code.hpp"
 #include "tftp_frame.hpp"
+#include "utility.hpp"
 
 namespace tftp {
 using boost::asio::ip::udp;
 typedef std::function<void(error_code)> client_completion_callback;
-
-template <typename T>
-std::string to_string(const T &endpoint) {
-  std::stringstream ss;
-  ss << endpoint;
-  return ss.str();
-}
 
 class base_config {
 public:

@@ -11,8 +11,7 @@ class duration_generator {
 private:
 protected:
 public:
-  virtual ms_duration operator()() = 0;
-  ms_duration get() { return (*this)(); }
+  virtual ms_duration get() = 0;
   virtual ~duration_generator(){};
 };
 typedef std::shared_ptr<duration_generator> duration_generator_s;
@@ -23,7 +22,7 @@ private:
 
 public:
   constant_duration_generator(const ms_duration &_delay) : delay(_delay) {}
-  ms_duration operator()() override { return delay; }
+  ms_duration get() override { return delay; }
 };
 typedef std::shared_ptr<constant_duration_generator> constant_duration_generator_s;
 
@@ -44,7 +43,7 @@ public:
       : gen(rd()),
         distrib(original.lower_limit.count(), original.upper_limit.count()) {}
 
-  ms_duration operator()() { return ms_duration(distrib(rd)); }
+  ms_duration get() { return ms_duration(distrib(rd)); }
 };
 typedef std::shared_ptr<random_duration_generator> random_duration_generator_s;
 
