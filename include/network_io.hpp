@@ -32,6 +32,7 @@ public:
         std::bind(&receiver::callback_transit, this, callback, std::placeholders::_1, std::placeholders::_2));
     this->timer.expires_after(this->network_timeout);
     this->timer.async_wait([=](const boost::system::error_code &error) {
+      (void)(callback);
       if (error == boost::asio::error::operation_aborted) {
         return;
       }
