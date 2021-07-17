@@ -53,6 +53,13 @@ public:
   }
 };
 
+int get_random_number(int lower, int upper) {
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_int_distribution<std::mt19937::result_type> dist(lower, upper);
+  return dist(rng);
+}
+
 namespace bdata = boost::unit_test::data;
 BOOST_DATA_TEST_CASE(file_io_general_test,
                      bdata::make({512, 1024, 1023, 2040}) ^ bdata::make(1, 20, 31, 12),
@@ -68,10 +75,8 @@ BOOST_DATA_TEST_CASE(file_io_general_test,
   std::vector<char> sample_data;
   std::streamsize bytes_read, read_size, total_read = 0;
   size_t index = 0;
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_int_distribution<std::mt19937::result_type> dist(1, 2 * block_size);
-  read_size = dist(rng);
+
+  read_size    = get_random_number(1, block_size * 2);
   sample_data.resize(read_size);
   while (sample_reader.fill_buffer(sample_data.begin(), sample_data.end(), bytes_read)) {
     auto count = std::min(sample_data.end() - sample_data.begin(), bytes_read);
@@ -88,7 +93,7 @@ BOOST_DATA_TEST_CASE(file_io_general_test,
     if (bytes_read != read_size) {
       break;
     }
-    read_size = dist(rng);
+    read_size = get_random_number(1, block_size * 2);
     sample_data.resize(read_size);
   }
   BOOST_TEST(total_read == block_size * block_count, "Number of bytes read is not as much as expected");
@@ -108,4 +113,27 @@ BOOST_AUTO_TEST_CASE(file_io_read_non_existing_file) {
   BOOST_TEST(sample_reader.fill_buffer(buffer.begin(), buffer.end(), bytes_read) == false,
              "Buffer was filled for non reader associated with non existing file");
   BOOST_TEST(bytes_read == 0, "Numer of bytes read is non zero");
+}
+
+BOOST_DATA_TEST_CASE(file_io_writer_test, bdata::make({513}) ^ bdata::make({10}), block_size, block_count) {
+  const std::string filename("file_io_writer_test");
+  fileio::writer sample_writer(filename);
+  BOOST_TEST(sample_writer.is_open(), "fileio::writer failed to open file for writting");
+  std::vector<char> data_write;
+  for (int i = 0; i < block_size; i++) {
+    data_write.push_back(static_cast<char>(i % 128));
+  }
+  for (int i = 0; i < block_count; i++) {
+    sample_writer.write_buffer(data_write.cbegin(), data_write.cend());
+  }
+  std::fstream read_handle(filename, std::ios::in | std::ios::binary);
+  std::vector<char> data_read;
+  data_read.resize(block_size);
+  int bytes_read = 0;
+  for (int i = 0; i < block_count; i++) {
+    read_handle.read(data_read.data(), block_size);
+    BOOST_TEST(std::equal(data_read.cbegin(), data_read.cend(), data_write.cbegin()));
+    bytes_read += (data_read.cend() - data_read.cbegin());
+  }
+  BOOST_TEST(bytes_read == block_size * block_count, "Mismatch in number of bytes read and written");
 }
