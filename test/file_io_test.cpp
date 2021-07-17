@@ -78,7 +78,7 @@ BOOST_DATA_TEST_CASE(file_io_general_test,
 
   read_size    = get_random_number(1, block_size * 2);
   sample_data.resize(read_size);
-  while (sample_reader.fill_buffer(sample_data.begin(), sample_data.end(), bytes_read)) {
+  while (sample_reader.read_buffer(sample_data.begin(), sample_data.end(), bytes_read)) {
     auto count = std::min(sample_data.end() - sample_data.begin(), bytes_read);
     std::stringstream ss;
     ss << "Wanted " << read_size << ", Read :" << bytes_read;
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(file_io_read_non_existing_file) {
   BOOST_TEST(sample_reader.is_open() == false, "Non existing file is said as open");
   std::array<char, 16> buffer;
   std::streamsize bytes_read = 0;
-  BOOST_TEST(sample_reader.fill_buffer(buffer.begin(), buffer.end(), bytes_read) == false,
+  BOOST_TEST(sample_reader.read_buffer(buffer.begin(), buffer.end(), bytes_read) == false,
              "Buffer was filled for non reader associated with non existing file");
   BOOST_TEST(bytes_read == 0, "Numer of bytes read is non zero");
 }

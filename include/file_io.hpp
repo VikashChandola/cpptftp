@@ -17,7 +17,7 @@ public:
    * any problem. bytes_read argument is set to number of bytes read from the file
    */
   template <typename T>
-  bool fill_buffer(T itr_begin, T itr_end, std::streamsize &bytes_read) noexcept {
+  bool read_buffer(T itr_begin, T itr_end, std::streamsize &bytes_read) noexcept {
     size_t buffer_size = itr_end - itr_begin;
     std::unique_ptr<char[]> buffer(new char[buffer_size]);
     if (!this->is_open()) {
