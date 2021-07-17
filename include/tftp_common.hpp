@@ -52,10 +52,8 @@ protected:
       : remote_endpoint(config.remote_endpoint),
         network_timeout(config.network_timeout),
         max_retry_count(config.max_retry_count),
-        delay_gen(config.delay_gen),
         socket(io),
         timer(io),
-        delay_timer(io),
         block_number(0),
         retry_count(0),
         worker_stage(worker_constructed) {
@@ -63,28 +61,12 @@ protected:
   }
   virtual void exit(error_code e) = 0;
 
-  void do_send(const udp::endpoint &endpoint,
-               std::function<void(const boost::system::error_code &, const std::size_t)> cb) {
-#ifdef CONF_DELAY_SEND
-    auto delay = this->delay_gen->get();
-    XDEBUG("Executing artificial delay of :%lu ms", delay.count());
-    this->delay_timer.expires_after(delay);
-    this->delay_timer.async_wait([&, cb](const boost::system::error_code &) {
-      this->socket.async_send_to(this->frame->get_asio_buffer(), endpoint, cb);
-    });
-#else
-    this->socket.async_send_to(this->frame->get_asio_buffer(), endpoint, cb);
-#endif
-  }
-
   const udp::endpoint remote_endpoint;
   const ms_duration network_timeout;
   const uint16_t max_retry_count;
-  duration_generator_s delay_gen;
 
   udp::socket socket;
   boost::asio::steady_timer timer;
-  boost::asio::steady_timer delay_timer;
   uint16_t block_number;
   uint16_t retry_count;
   enum { worker_constructed, worker_running, worker_completed, worker_aborted } worker_stage;
