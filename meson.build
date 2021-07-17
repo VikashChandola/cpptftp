@@ -33,6 +33,10 @@ executable('test_tftp_frame', sources: test_tftp_frame_src,include_directories: 
 
 test_duration_generator_src = ['test/duration_generator_test.cpp']
 executable('test_duration_generator', sources: test_duration_generator_src, include_directories: tftp_inc_dir)
+
+test_file_io_src = ['test/file_io_test.cpp']
+executable('test_file_io', sources: test_file_io_src, include_directories: tftp_inc_dir)
+
 #----------------------------------------------------------------------------------------------------------------------
 
 simple_client_src = ['src/simple_client.cpp',
