@@ -163,7 +163,7 @@ void download_server::send_error(const frame::error_code &e_code, const std::str
 }
 
 //-----------------------------------------------------------------------------
-
+/*
 upload_server::upload_server(boost::asio::io_context &io, const upload_server_config &config)
     : server(io, config),
       stage(us_send_ack) {
@@ -342,7 +342,7 @@ void upload_server::receiver_cb(const boost::system::error_code &error, const st
   default: {
   } break;
   }
-}
+}*/
 
 void spin_tftp_server(boost::asio::io_context &io,
                       frame_csc &first_frame,
@@ -356,8 +356,8 @@ void spin_tftp_server(boost::asio::io_context &io,
   } break;
   case frame::op_write_request: {
     upload_server_config config(remote_endpoint, work_dir, first_frame);
-    auto us = upload_server::create(io, config);
-    us->start();
+    /*auto us = upload_server::create(io, config);
+    us->start();*/
     break;
   }
   default:

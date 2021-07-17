@@ -36,8 +36,6 @@ class download_client;
 typedef std::shared_ptr<download_client> download_client_s;
 
 class upload_client_config;
-class upload_client;
-typedef std::shared_ptr<upload_client> upload_client_s;
 
 class client_config : public base_config {
 public:
@@ -113,6 +111,9 @@ private:
   nio::receiver receiver;
   nio::sender sender;
 };
+/*
+class upload_client;
+typedef std::shared_ptr<upload_client> upload_client_s;
 
 class upload_client : public std::enable_shared_from_this<upload_client> {
 public:
@@ -151,7 +152,7 @@ private:
   error_code exec_error;
   uint16_t block_number;
   bool is_last_block = false;
-};
+};*/
 
 /* `client` class is interface for user to execute tftp client related request. This class allows upload and
  * download of file from remote tftp server. User will have to create one instance of this class per server
@@ -205,11 +206,11 @@ public:
   void upload_file(const std::string &remote_file_name,
                    std::string local_file_name,
                    client_completion_callback upload_callback) {
-    upload_client::create(this->io,
+    /*upload_client::create(this->io,
                           remote_file_name,
                           this->remote_endpoint,
                           std::make_unique<std::ifstream>(local_file_name, std::ios::binary | std::ios::in),
-                          upload_callback);
+                          upload_callback);*/
   }
 
 private:

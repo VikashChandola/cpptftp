@@ -182,7 +182,7 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
 }
 
 //-----------------------------------------------------------------------------
-
+/*
 upload_client::upload_client(boost::asio::io_context &io,
                              const std::string &file_name,
                              const udp::endpoint &remote_endpoint,
@@ -324,6 +324,6 @@ void upload_client::update_stage(const boost::system::error_code &error, const s
     break;
   }
   }
-}
+}*/
 
 //-----------------------------------------------------------------------------

@@ -31,8 +31,7 @@ class server_config;
 class download_server;
 typedef std::shared_ptr<download_server> download_server_s;
 
-class upload_server;
-typedef std::shared_ptr<upload_server> upload_server_s;
+
 
 class server_config : public base_config {
 public:
@@ -96,6 +95,10 @@ private:
   nio::sender sender;
 };
 
+/*
+class upload_server;
+typedef std::shared_ptr<upload_server> upload_server_s;
+
 class upload_server : public server, public std::enable_shared_from_this<upload_server> {
 public:
   static upload_server_s create(boost::asio::io_context &io, const upload_server_config &config);
@@ -122,7 +125,7 @@ private:
 
   upload_server_stage stage;
   std::ofstream write_stream;
-};
+};*/
 
 /* `server_distributor` provides tftp server functionality. server_distributor usage
  * 1. Create server_distributor_s object
