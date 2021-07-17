@@ -21,7 +21,9 @@ using namespace tftp;
 download_client::download_client(boost::asio::io_context &io, const download_client_config &config)
     : client(io, config),
       is_last_block(false),
-      write_handle(config.local_file_name) {
+      write_handle(config.local_file_name),
+      receiver(io, this->socket, config.network_timeout),
+      sender(io, this->socket, config.delay_gen) {
   DEBUG("Setting up client to download remote file [%s] from [%s] to [%s]",
         this->remote_file_name.c_str(),
         to_string(this->remote_endpoint).c_str(),
@@ -58,21 +60,17 @@ void download_client::exit(error_code e) {
 void download_client::send_request() {
   XDEBUG("Sending request to download file %s", this->remote_file_name.c_str());
   this->frame = frame::create_read_request_frame(this->remote_file_name);
-  this->do_send(this->remote_endpoint,
-                std::bind(&download_client::send_request_cb,
-                          shared_from_this(),
-                          std::placeholders::_1,
-                          std::placeholders::_2));
-}
-
-void download_client::send_request_cb(const boost::system::error_code &error, const std::size_t bytes_sent) {
-  (void)(bytes_sent);
-  if (error) {
-    ERROR("%s[%d] send failed Error :%s", __func__, __LINE__, to_string(error).c_str());
-    this->exit(error::boost_asio_error_base + error.value());
-  } else {
-    this->receive_data();
-  }
+  this->sender.async_send(
+      this->frame->get_asio_buffer(),
+      this->remote_endpoint,
+      [self = shared_from_this()](const boost::system::error_code &error, const std::size_t) {
+        if (error) {
+          ERROR("%s[%d] send failed Error :%s", __func__, __LINE__, to_string(error).c_str());
+          self->exit(error::boost_asio_error_base + error.value());
+        } else {
+          self->receive_data();
+        }
+      });
 }
 
 void download_client::send_ack() { this->send_ack_for_block_number(this->block_number); }
@@ -80,43 +78,31 @@ void download_client::send_ack() { this->send_ack_for_block_number(this->block_n
 void download_client::send_ack_for_block_number(uint16_t block_num) {
   XDEBUG("Sending ack for block number %u", block_num);
   this->frame = frame::create_ack_frame(block_num);
-  this->do_send(this->server_tid,
-                std::bind(&download_client::send_ack_cb,
-                          shared_from_this(),
-                          std::placeholders::_1,
-                          std::placeholders::_2));
-}
-
-void download_client::send_ack_cb(const boost::system::error_code &error, const std::size_t bytes_sent) {
-  (void)(bytes_sent);
-  if (error) {
-    ERROR("%s[%d] Received unrecoverable error [%s]", __func__, __LINE__, to_string(error).c_str());
-    this->exit(error::boost_asio_error_base + error.value());
-    return;
-  }
-  if (this->is_last_block) {
-    this->exit(error::no_error);
-  } else {
-    this->receive_data();
-  }
+  this->sender.async_send(
+      this->frame->get_asio_buffer(),
+      this->server_tid,
+      [self = shared_from_this()](const boost::system::error_code &error, const std::size_t) {
+        if (error) {
+          ERROR("%s[%d] Received unrecoverable error [%s]", __func__, __LINE__, to_string(error).c_str());
+          self->exit(error::boost_asio_error_base + error.value());
+          return;
+        }
+        if (self->is_last_block) {
+          self->exit(error::no_error);
+        } else {
+          self->receive_data();
+        }
+      });
 }
 
 void download_client::receive_data() {
   XDEBUG("Waiting for block number %u", this->block_number + 1);
   this->frame = frame::create_empty_frame();
-  this->socket.async_receive_from(this->frame->get_asio_buffer(),
-                                  this->receive_tid,
-                                  std::bind(&download_client::receive_data_cb,
-                                            shared_from_this(),
-                                            std::placeholders::_1,
-                                            std::placeholders::_2));
-  this->timer.expires_after(this->network_timeout);
-  this->timer.async_wait([&](const boost::system::error_code &e) {
-    if (e == boost::asio::error::operation_aborted) {
-      return;
-    }
-    this->socket.cancel();
-  });
+  this->receiver.async_receive(this->frame->get_asio_buffer(),
+                               std::bind(&download_client::receive_data_cb,
+                                         shared_from_this(),
+                                         std::placeholders::_1,
+                                         std::placeholders::_2));
 }
 
 void download_client::receive_data_cb(const boost::system::error_code &error,
@@ -142,11 +128,11 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     return;
   }
   if (this->server_tid.port() == 0) {
-    this->server_tid = this->receive_tid;
-  } else if (this->server_tid != this->receive_tid) {
+    this->server_tid = this->receiver.get_receive_endpoint();
+  } else if (this->server_tid != this->receiver.get_receive_endpoint()) {
     WARN("Expecting data from %s but received from %s",
          to_string(this->server_tid).c_str(),
-         to_string(this->receive_tid).c_str());
+         to_string(this->receiver.get_receive_endpoint()).c_str());
     if (this->retry_count++ >= this->max_retry_count) {
       this->exit(error::invalid_server_response);
       return;
@@ -169,7 +155,7 @@ void download_client::receive_data_cb(const boost::system::error_code &error,
     itr_pair = this->frame->get_data_iterator();
   } catch (framing_exception &e) {
     // This could happen on packet fragmentation or bad packet
-    WARN("Failed to parse response from %s", to_string(this->receive_tid).c_str());
+    WARN("Failed to parse response from %s", to_string(this->receiver.get_receive_endpoint()).c_str());
     this->receive_data();
     return;
   }

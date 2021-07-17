@@ -13,6 +13,7 @@
 #include "duration_generator.hpp"
 #include "file_io.hpp"
 #include "log.hpp"
+#include "network_io.hpp"
 #include "project_config.hpp"
 #include "tftp_common.hpp"
 #include "tftp_error_code.hpp"
@@ -73,8 +74,8 @@ public:
         remote_file_name(config.remote_file_name),
         local_file_name(config.local_file_name),
         callback(config.callback) {
-    if (this->server_tid.port() != 0 && this->receive_tid.port() != 0) {
-      /* server_tid and receive_tid must be initialized with 0 by default constructors otherwise it won't be
+    if (this->server_tid.port() != 0) {
+      /* server_tid and must be initialized with 0 by default constructors otherwise it won't be
        * possible to verify remote endpoint(refer receiver_x_cb method). Current constructors of asio
        * initialize with port as 0. This assert is to ensure that any future change in default constructor
        * gets identified quickly.
@@ -89,7 +90,6 @@ protected:
   const std::string local_file_name;
   client_completion_callback callback;
   udp::endpoint server_tid;
-  udp::endpoint receive_tid;
 };
 
 class download_client : public std::enable_shared_from_this<download_client>, public client {
@@ -101,10 +101,8 @@ public:
 private:
   download_client(boost::asio::io_context &io, const download_client_config &config);
   void send_request();
-  void send_request_cb(const boost::system::error_code &error, const std::size_t bytes_sent);
   void send_ack();
   void send_ack_for_block_number(uint16_t);
-  void send_ack_cb(const boost::system::error_code &error, const std::size_t bytes_sent);
   void receive_data();
   void receive_data_cb(const boost::system::error_code &error, const std::size_t bytes_received);
   void exit(error_code e) override;
@@ -112,6 +110,8 @@ private:
   // indicator that now we are on last block of transaction
   bool is_last_block;
   fileio::writer write_handle;
+  nio::receiver receiver;
+  nio::sender sender;
 };
 
 class upload_client : public std::enable_shared_from_this<upload_client> {
