@@ -115,16 +115,25 @@ BOOST_AUTO_TEST_CASE(file_io_read_non_existing_file) {
   BOOST_TEST(bytes_read == 0, "Numer of bytes read is non zero");
 }
 
-BOOST_DATA_TEST_CASE(file_io_writer_test, bdata::make({513}) ^ bdata::make({10}), block_size, block_count) {
+BOOST_DATA_TEST_CASE(file_io_writer_test,
+                     (bdata::make({513, 512}) ^ bdata::make({10, 8})) * bdata::make({true, false}),
+                     block_size,
+                     block_count,
+                     lazy) {
   const std::string filename("file_io_writer_test");
-  fileio::writer sample_writer(filename);
-  BOOST_TEST(sample_writer.is_open(), "fileio::writer failed to open file for writting");
+  fileio::writer sample_writer(filename, lazy);
+  if (lazy) {
+    BOOST_TEST(!sample_writer.is_open(), "fileio::writer opened file for writting");
+  } else {
+    BOOST_TEST(sample_writer.is_open(), "fileio::writer have not opened file for writting");
+  }
   std::vector<char> data_write;
   for (int i = 0; i < block_size; i++) {
     data_write.push_back(static_cast<char>(i % 128));
   }
   for (int i = 0; i < block_count; i++) {
     sample_writer.write_buffer(data_write.cbegin(), data_write.cend());
+    BOOST_TEST(sample_writer.is_open(), "fileio::writer didn't open file");
   }
   std::fstream read_handle(filename, std::ios::in | std::ios::binary);
   std::vector<char> data_read;
@@ -136,4 +145,7 @@ BOOST_DATA_TEST_CASE(file_io_writer_test, bdata::make({513}) ^ bdata::make({10})
     bytes_read += (data_read.cend() - data_read.cbegin());
   }
   BOOST_TEST(bytes_read == block_size * block_count, "Mismatch in number of bytes read and written");
+  std::stringstream ss;
+  ss << "rm -rf " << filename;
+  std::system(ss.str().c_str());
 }

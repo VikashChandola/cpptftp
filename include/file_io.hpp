@@ -39,15 +39,25 @@ protected:
 
 class writer {
 private:
+  std::string filename;
   std::fstream handle;
 
+  void open_file() { handle = std::fstream(this->filename, std::ios::out | std::ios::binary); }
+
 public:
-  writer(const std::string &filename) : handle(filename, std::ios::out | std::ios::binary) {}
+  writer(const std::string &filename, bool lazy = true) : filename(filename) {
+    if (!lazy) {
+      this->open_file();
+    }
+  }
 
   bool is_open() { return this->handle.is_open(); }
 
   template <typename T>
   bool write_buffer(T itr_begin, T itr_end) noexcept {
+    if (!this->is_open()) {
+      this->open_file();
+    }
     size_t buffer_size = itr_end - itr_begin;
     std::unique_ptr<char[]> buffer(new char[buffer_size]);
     std::copy(itr_begin, itr_end, buffer.get());
