@@ -92,7 +92,6 @@ void download_server::receive_ack_cb(const boost::system::error_code &error,
     return;
   }
   if (this->get_stage() == worker_aborted) {
-    // User requested operation abort
     this->exit(error::no_error);
     return;
   }
@@ -106,7 +105,6 @@ void download_server::receive_ack_cb(const boost::system::error_code &error,
     return;
   }
   if (this->receiver.get_receive_endpoint() != this->remote_endpoint) {
-    // somebody is fucking up on this udp port
     WARN("%s Received data from unknown endpoint %s. Message is Rejected",
          to_string(this->remote_endpoint).c_str(),
          to_string(this->receiver.get_receive_endpoint()).c_str());
@@ -121,26 +119,21 @@ void download_server::receive_ack_cb(const boost::system::error_code &error,
     this->frame->resize(bytes_received);
     this->frame->parse_frame();
   } catch (framing_exception &e) {
-    // bad frame, check again. This is not considered for retry count but neither do we reset it
     std::cerr << this->remote_endpoint << " [" << __func__ << "] Failed to parse ack frame"
               << " Error :" << e.what() << std::endl;
     this->receive_ack();
     return;
   }
   if (this->frame->get_block_number() != this->block_number) {
-    // received ack for different block number, discard it and wait for our block number
     this->receive_ack();
     return;
   }
-  // Everything was good so reset counter and move to next step
   this->retry_count = 0;
   if (this->is_last_frame) {
     std::cout << this->remote_endpoint << " [" << __func__ << "] has been served." << std::endl;
-    // congratualtions, 'this' have served it's purpose, time to die now
     this->exit(error::no_error);
     return;
   }
-  // Everything is good, time to send new data frame to client
   this->send_data();
 }
 
