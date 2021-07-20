@@ -1,4 +1,4 @@
-option('DELAY_SEND', type: 'feature', value : 'disabled', description :'Enables delayed send')
+#option('DELAY_SEND', type: 'feature', value : 'disabled', description :'Enables delayed send')
 option('CONSTANT_DELAY_DURATION', type: 'integer', value: 1000, description :'Delay before sending a packet')
 option('EXTENSIVE_DEBUG_LOG', type: 'feature', value : 'disabled', description :'Enables extensive debug logging')
 option('NETWORK_TIMEOUT', type: 'integer', value: 1000, description: 'Network timeout(in milliseconds)')

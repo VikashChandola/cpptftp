@@ -67,26 +67,18 @@ public:
 
 class client : public base_worker {
 public:
-  client(boost::asio::io_context &io, const client_config &config)
-      : base_worker(io, config),
-        remote_file_name(config.remote_file_name),
-        local_file_name(config.local_file_name),
-        callback(config.callback) {
-    if (this->server_tid.port() != 0) {
-      /* server_tid must be initialized with 0 by default constructors otherwise it won't be
-       * possible to verify remote endpoint(refer receiver_x_cb method). Current constructors of asio
-       * initialize with port as 0. This assert is to ensure that any future change in default constructor
-       * gets identified quickly.
-       */
-      ERROR("server tids are not zero. client can not function");
-      std::exit(1);
-    }
-  }
+  client(boost::asio::io_context &io, const client_config &config);
+  void start() override;
 
 protected:
+  void exit(error_code e) override;
+
+  virtual void send_request() = 0;
   const std::string remote_file_name;
   const std::string local_file_name;
   client_completion_callback callback;
+  // indicator that now we are on last block of transaction
+  bool is_last_block;
   udp::endpoint server_tid;
 };
 
@@ -98,61 +90,35 @@ public:
 
 private:
   download_client(boost::asio::io_context &io, const download_client_config &config);
-  void send_request();
+  virtual void send_request() override;
   void send_ack();
   void send_ack_for_block_number(uint16_t);
   void receive_data();
   void receive_data_cb(const boost::system::error_code &error, const std::size_t bytes_received);
-  void exit(error_code e) override;
 
-  // indicator that now we are on last block of transaction
-  bool is_last_block;
   fileio::writer write_handle;
   nio::receiver receiver;
   nio::sender sender;
 };
-/*
+
 class upload_client;
 typedef std::shared_ptr<upload_client> upload_client_s;
 
-class upload_client : public std::enable_shared_from_this<upload_client> {
+class upload_client : public std::enable_shared_from_this<upload_client>, public client {
 public:
-  static upload_client_s create(boost::asio::io_context &io,
-                                const std::string &file_name,
-                                const udp::endpoint &remote_endpoint,
-                                std::unique_ptr<std::istream> u_in_stream,
-                                client_completion_callback upload_callback) {
-    upload_client_s self(
-        new upload_client(io, file_name, remote_endpoint, std::move(u_in_stream), upload_callback));
-    self->sender(boost::system::error_code(), 0);
-    return self;
-  }
+  static upload_client_s create(boost::asio::io_context &io, const upload_client_config &config);
+  virtual void start() override;
 
 private:
-  void sender(const boost::system::error_code &error, const std::size_t bytes_received);
-
-  void receiver(const boost::system::error_code &error, const std::size_t bytes_sent);
-
-  void update_stage(const boost::system::error_code &error, const std::size_t bytes_transacted);
-
-  upload_client(boost::asio::io_context &io,
-                const std::string &file_name,
-                const udp::endpoint &remote_endpoint,
-                std::unique_ptr<std::istream> u_in_stream,
-                client_completion_callback download_callback);
-
-  enum upload_stage { init, upload_request, wait_ack, upload_data, exit } stage;
-
-  udp::socket socket;
-  udp::endpoint remote_tid;
-  std::string file_name;
-  std::unique_ptr<std::istream> u_in;
-  client_completion_callback callback;
-  frame_s frame;
-  error_code exec_error;
-  uint16_t block_number;
-  bool is_last_block = false;
-};*/
+  upload_client(boost::asio::io_context &io, const upload_client_config &config);
+  void send_request();
+  void receive_ack();
+  void receive_ack_cb(const boost::system::error_code &error, const std::size_t bytes_received);
+  void send_data(bool resend = false);
+  fileio::reader read_handle;
+  nio::receiver receiver;
+  nio::sender sender;
+};
 
 /* `client` class is interface for user to execute tftp client related request. This class allows upload and
  * download of file from remote tftp server. User will have to create one instance of this class per server
@@ -206,11 +172,12 @@ public:
   void upload_file(const std::string &remote_file_name,
                    std::string local_file_name,
                    client_completion_callback upload_callback) {
-    /*upload_client::create(this->io,
-                          remote_file_name,
-                          this->remote_endpoint,
-                          std::make_unique<std::ifstream>(local_file_name, std::ios::binary | std::ios::in),
-                          upload_callback);*/
+    upload_client_config config(this->remote_endpoint,
+                                remote_file_name,
+                                this->work_dir + local_file_name,
+                                upload_callback);
+    auto worker = upload_client::create(this->io, config);
+    worker->start();
   }
 
 private:

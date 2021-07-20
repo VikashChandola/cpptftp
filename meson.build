@@ -5,9 +5,6 @@ project('cpptftp', 'cpp',
                          'warning_level=3'])
 
 conf_data = configuration_data()
-if get_option('DELAY_SEND').enabled()
-  conf_data.set('CONF_DELAY_SEND', true)
-endif
 if get_option('EXTENSIVE_DEBUG_LOG').enabled()
   conf_data.set('CONF_EXTENSIVE_DEBUG_LOG', true)
 endif
