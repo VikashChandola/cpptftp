@@ -100,7 +100,7 @@ public:
 
   static frame_s create_empty_frame();
 
-  void parse_frame();
+  void parse_frame(const op_code &expected_opcode = op_invalid);
 
   const std::vector<char> &get_frame_as_vector() { return this->data; }
 

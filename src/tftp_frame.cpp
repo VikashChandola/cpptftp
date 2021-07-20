@@ -28,10 +28,11 @@ static std::map<frame::error_code, std::string> error_code_map{
 
 frame_s frame::create_read_request_frame(const std::string &file_name, const frame::data_mode mode) {
   if (file_name.size() > 255 || file_name.size() < 1) {
-    throw invalid_frame_parameter_exception("Read request with filename larger than 255 characters or smaller than 1");
+    throw invalid_frame_parameter_exception(
+        "Read request with filename larger than 255 characters or smaller than 1");
   }
   frame_s self = frame::get_base_frame(frame::op_read_request);
-  self->code = frame::op_read_request;
+  self->code   = frame::op_read_request;
   self->append_to_frame(file_name);
   self->file_name = file_name;
   self->append_to_frame(0x00);
@@ -42,15 +43,15 @@ frame_s frame::create_read_request_frame(const std::string &file_name, const fra
 }
 
 frame_s frame::create_write_request_frame(const std::string &file_name, const frame::data_mode mode) {
-  frame_s self = create_read_request_frame(file_name, mode);
+  frame_s self  = create_read_request_frame(file_name, mode);
   self->data[1] = frame::op_write_request;
-  self->code = frame::op_write_request;
+  self->code    = frame::op_write_request;
   return self;
 }
 
 frame_s frame::create_ack_frame(const uint16_t &block_number) {
   frame_s self = frame::get_base_frame(op_ack);
-  self->code = op_ack;
+  self->code   = op_ack;
   self->append_to_frame(block_number);
   self->block_number = block_number;
   return self;
@@ -58,7 +59,7 @@ frame_s frame::create_ack_frame(const uint16_t &block_number) {
 
 frame_s frame::create_error_frame(const frame::error_code &e_code, std::string error_message) {
   frame_s self = frame::get_base_frame(op_error);
-  self->code = op_error;
+  self->code   = op_error;
   self->append_to_frame(static_cast<uint16_t>(e_code));
   self->e_code = e_code;
   if (error_message.empty()) {
@@ -80,7 +81,7 @@ frame_s frame::create_empty_frame() {
   return empty_frame;
 }
 
-void frame::parse_frame() {
+void frame::parse_frame(const op_code &expected_opcode) {
   if (this->data.size() < 4) {
     throw framing_exception("Can't parse frame with length smaller than 4");
   }
@@ -120,6 +121,9 @@ void frame::parse_frame() {
   default: {
     throw invalid_frame_parameter_exception("Invalid OP code");
   } break;
+  }
+  if (expected_opcode != op_invalid && this->code != expected_opcode) {
+    throw framing_exception("Frame op code didn't match expectated op code");
   }
 }
 
