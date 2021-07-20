@@ -118,6 +118,8 @@ private:
   fileio::reader read_handle;
   nio::receiver receiver;
   nio::sender sender;
+  std::streamsize data_size;
+  char data[TFTP_FRAME_MAX_DATA_LEN];
 };
 
 /* `client` class is interface for user to execute tftp client related request. This class allows upload and

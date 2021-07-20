@@ -296,6 +296,34 @@ void upload_client::receive_ack_cb(const boost::system::error_code &error, const
   this->send_data();
 }
 
-void upload_client::send_data(bool resend) {}
+void upload_client::send_data(bool resend) {
+  // If it's resend request then don't update block number and data
+  // Just send whatever we had sent last time
+  if (!resend) {
+    if (this->read_handle.read_buffer(&this->data[0],
+                                      &this->data[TFTP_FRAME_MAX_DATA_LEN],
+                                      this->data_size) == false) {
+      // this->send_error(frame::undefined_error, "File read operation failed");
+      // What to do here ?
+      return;
+    }
+    is_last_block = (TFTP_FRAME_MAX_DATA_LEN != this->data_size);
+    this->block_number++;
+  } else {
+    INFO("%s Resending block number", to_string(this->remote_endpoint).c_str());
+  }
+  this->frame =
+      frame::create_data_frame(&this->data[0],
+                               std::min(&this->data[this->data_size], &this->data[TFTP_FRAME_MAX_DATA_LEN]),
+                               this->block_number);
+  auto send_data_cb = [self = shared_from_this()](const boost::system::error_code &error,
+                                                  const std::size_t &) {
+    if (error) {
+      std::cerr << self->remote_endpoint << "Failed to send data  error :" << error << std::endl;
+    }
+    self->receive_ack();
+  };
+  this->sender.async_send(this->frame->get_asio_buffer(), this->remote_endpoint, send_data_cb);
+}
 
 //-----------------------------------------------------------------------------
