@@ -117,7 +117,7 @@ void download_server::receive_ack_cb(const boost::system::error_code &error,
   }
   try {
     this->frame->resize(bytes_received);
-    this->frame->parse_frame();
+    this->frame->parse_frame(frame::op_ack);
   } catch (framing_exception &e) {
     std::cerr << this->remote_endpoint << " [" << __func__ << "] Failed to parse ack frame"
               << " Error :" << e.what() << std::endl;
