@@ -243,12 +243,12 @@ void upload_client::receive_ack() {
 }
 
 void upload_client::receive_ack_cb(const boost::system::error_code &error, const std::size_t bytes_received) {
-  if (error && error != boost::asio::error::operation_aborted) {
-    std::cerr << this->remote_endpoint << " [" << __func__ << "] error :" << error << std::endl;
-    return;
-  }
   if (this->get_stage() == worker_aborted) {
     this->exit(error::no_error);
+    return;
+  }
+  if (error && error != boost::asio::error::operation_aborted) {
+    std::cerr << this->remote_endpoint << " [" << __func__ << "] error :" << error << std::endl;
     return;
   }
   if (error == boost::asio::error::operation_aborted) {
@@ -257,7 +257,11 @@ void upload_client::receive_ack_cb(const boost::system::error_code &error, const
       this->exit(error::receive_timeout);
       return;
     }
-    this->send_data(true);
+    if(this->block_number == 0){
+      this->send_request();
+    } else {
+      this->send_data(true);
+    }
     return;
   }
   if (this->server_tid.port() == 0) {
