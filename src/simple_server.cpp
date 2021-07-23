@@ -38,6 +38,7 @@ int main(int argc, char **argv) {
     return -1;
   }
 
+  openlog(NULL, LOG_PID | LOG_PERROR, LOG_USER);
   boost::asio::io_context io;
   udp::resolver resolver(io);
   udp::endpoint local_endpoint;
