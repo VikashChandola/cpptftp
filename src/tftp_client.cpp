@@ -257,7 +257,7 @@ void upload_client::receive_ack_cb(const boost::system::error_code &error, const
       this->exit(error::receive_timeout);
       return;
     }
-    if(this->block_number == 0){
+    if (this->block_number == 0) {
       this->send_request();
     } else {
       this->send_data(true);
@@ -281,9 +281,18 @@ void upload_client::receive_ack_cb(const boost::system::error_code &error, const
   try {
     this->frame->resize(bytes_received);
     this->frame->parse_frame(frame::op_ack);
+  } catch (frame_type_mismatch_exception &e) {
+    if (this->frame->get_op_code() == frame::op_error) {
+      XDEBUG("Server responded with error :%s", this->frame->get_error_message().c_str());
+      this->exit(this->frame->get_error_code());
+      return;
+    } else {
+      this->receive_ack();
+    }
   } catch (framing_exception &e) {
     std::cerr << this->remote_endpoint << " [" << __func__ << "] Failed to parse ack frame"
               << " Error :" << e.what() << std::endl;
+
     this->receive_ack();
     return;
   }
@@ -327,7 +336,7 @@ void upload_client::send_data(bool resend) {
     }
     self->receive_ack();
   };
-  this->sender.async_send(this->frame->get_asio_buffer(), this->remote_endpoint, send_data_cb);
+  this->sender.async_send(this->frame->get_asio_buffer(), this->server_tid, send_data_cb);
 }
 
 //-----------------------------------------------------------------------------
