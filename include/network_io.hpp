@@ -64,7 +64,9 @@ public:
 
   void async_send(boost::asio::mutable_buffer &asio_buffer, const udp::endpoint &endpoint, completion_cb cb) {
     auto delay = this->delay_gen->get();
-    XDEBUG("Executing artificial delay of :%lu ms", delay.count());
+    if (delay.count() != 0) {
+      XDEBUG("Executing artificial delay of :%lu ms", delay.count());
+    }
     this->delay_timer.expires_after(delay);
     this->delay_timer.async_wait(
         [=](const boost::system::error_code &) { this->socket.async_send_to(asio_buffer, endpoint, cb); });
