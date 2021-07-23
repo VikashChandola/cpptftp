@@ -3,7 +3,7 @@
 
 #include <exception>
 #include <string>
-namespace tftp{
+namespace tftp {
 
 // Base exception class
 class exception : public std::exception {
@@ -25,8 +25,8 @@ class framing_exception : public exception {
   using exception::exception;
 };
 
-// An invalid parameter is encountered for example op code with value 0x12, or requested parameter is not part of
-// given frame here
+// An invalid parameter is encountered for example op code with value 0x12, or requested parameter is not part
+// of given frame here
 class invalid_frame_parameter_exception : public framing_exception {
   using framing_exception::framing_exception;
 };
@@ -36,5 +36,10 @@ class partial_frame_exception : public framing_exception {
   using framing_exception::framing_exception;
 };
 
-}
+// Frame is not complete. Either it's a broken frame or more is yet to come from remote end
+class frame_type_mismatch_exception : public framing_exception {
+  using framing_exception::framing_exception;
+};
+
+} // namespace tftp
 #endif //__TFTP_EXCEPTION_H__

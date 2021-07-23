@@ -123,7 +123,9 @@ void frame::parse_frame(const op_code &expected_opcode) {
   } break;
   }
   if (expected_opcode != op_invalid && this->code != expected_opcode) {
-    throw framing_exception("Frame op code didn't match expectated op code");
+    std::stringstream ss;
+    ss << "Expected op code" << expected_opcode << " Got " << this->code;
+    throw frame_type_mismatch_exception(ss.str());
   }
 }
 
