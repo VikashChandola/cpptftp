@@ -31,8 +31,6 @@ class server_config;
 class download_server;
 typedef std::shared_ptr<download_server> download_server_s;
 
-
-
 class server_config : public base_config {
 public:
   frame_csc frame;
@@ -93,7 +91,6 @@ private:
   nio::sender sender;
 };
 
-/*
 class upload_server;
 typedef std::shared_ptr<upload_server> upload_server_s;
 
@@ -101,29 +98,21 @@ class upload_server : public server, public std::enable_shared_from_this<upload_
 public:
   static upload_server_s create(boost::asio::io_context &io, const upload_server_config &config);
 
-  ~upload_server();
+  ~upload_server() override{};
   void start() override;
-  void abort() override{};
   void exit(error_code e) override { (void)(e); };
 
 private:
   upload_server(boost::asio::io_context &io, const upload_server_config &config);
-  void sender();
-  void sender_cb(const boost::system::error_code &e, const std::size_t &bytes_received);
-  void receiver();
-  void receiver_cb(const boost::system::error_code &e, const std::size_t &bytes_sent);
+  void send_error(const frame::error_code &, const std::string &message = "");
+  void send_ack(const uint16_t &block_number);
+  void receive_data();
+  void receive_data_cb(const boost::system::error_code &error, const std::size_t &bytes_received);
 
-  enum upload_server_stage {
-    us_send_ack,
-    us_resend_ack,
-    us_recv_data,
-    us_send_error,
-    us_recv_timeout,
-  };
-
-  upload_server_stage stage;
-  std::ofstream write_stream;
-};*/
+  fileio::writer write_handle;
+  nio::receiver receiver;
+  nio::sender sender;
+};
 
 /* `server_distributor` provides tftp server functionality. server_distributor usage
  * 1. Create server_distributor_s object

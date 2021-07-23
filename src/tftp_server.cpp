@@ -148,15 +148,14 @@ void download_server::send_error(const frame::error_code &e_code, const std::str
 }
 
 //-----------------------------------------------------------------------------
-/*
 upload_server::upload_server(boost::asio::io_context &io, const upload_server_config &config)
     : server(io, config),
-      stage(us_send_ack) {
-  std::cout << this->remote_endpoint << " Provisioned upload server job" << std::endl;
-}
-
-upload_server::~upload_server() {
-  std::cout << this->remote_endpoint << " Destroyed upload server job" << std::endl;
+      write_handle(config.filename),
+      receiver(io, this->socket, config.network_timeout),
+      sender(io, this->socket, config.delay_gen) {
+  DEBUG("Serving upload request for file [%s] from client at [%s]",
+        config.filename.c_str(),
+        to_string(this->remote_endpoint).c_str());
 }
 
 upload_server_s upload_server::create(boost::asio::io_context &io, const upload_server_config &config) {
@@ -165,169 +164,118 @@ upload_server_s upload_server::create(boost::asio::io_context &io, const upload_
 }
 
 void upload_server::start() {
+  if (this->get_stage() != worker_constructed) {
+    return;
+  }
+  this->set_stage_running();
   if (std::filesystem::exists(this->filename)) {
-    std::cerr << this->remote_endpoint << ": '" << this->filename << "' File already exists." << std::endl;
-    this->tftp_error_code = frame::file_already_exists;
-    this->stage           = us_send_error;
+    this->send_error(frame::file_already_exists);
   } else {
-    this->write_stream = std::ofstream(this->filename, std::ios::out | std::ios::binary);
-    if (!this->write_stream.is_open()) {
-      std::cerr << this->remote_endpoint << " Failed to open '" << this->filename << "'" << std::endl;
-      this->tftp_error_code = frame::file_not_found;
-      this->stage           = us_send_error;
-    }
+    this->send_ack(0);
   }
-  this->sender();
-};
+}
 
-void upload_server::sender() {
-  // std::cout << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
-  switch (this->stage) {
-  case us_send_ack: {
-    this->frame = frame::create_ack_frame(this->block_number);
-    this->socket.async_send_to(this->frame->get_asio_buffer(),
-                               this->remote_endpoint,
-                               std::bind(&upload_server::sender_cb,
+void upload_server::send_error(const frame::error_code &e_code, const std::string &message) {
+  this->frame = frame::create_error_frame(e_code, message);
+  this->sender.async_send(
+      this->frame->get_asio_buffer(),
+      this->remote_endpoint,
+      [self = shared_from_this()](const boost::system::error_code &, const std::size_t &) {
+        self->exit(error::disk_io_error);
+      });
+}
+
+void upload_server::send_ack(const uint16_t &block_num) {
+  XDEBUG("Sending ack for block number %u", block_num);
+  this->frame = frame::create_ack_frame(block_num);
+  this->sender.async_send(
+      this->frame->get_asio_buffer(),
+      this->remote_endpoint,
+      [self = shared_from_this()](const boost::system::error_code &error, const std::size_t) {
+        if (error) {
+          ERROR("%s[%d] Received unrecoverable error [%s]", __func__, __LINE__, to_string(error).c_str());
+          self->exit(error::boost_asio_error_base + error.value());
+          return;
+        }
+        if (self->is_last_frame) {
+          self->exit(error::no_error);
+        } else {
+          self->receive_data();
+        }
+      });
+}
+
+void upload_server::receive_data() {
+  XDEBUG("Waiting for data from :%s", to_string(this->remote_endpoint).c_str());
+  this->frame = frame::create_empty_frame();
+  this->receiver.async_receive(this->frame->get_asio_buffer(),
+                               std::bind(&upload_server::receive_data_cb,
                                          shared_from_this(),
                                          std::placeholders::_1,
                                          std::placeholders::_2));
-    return;
-  } break;
-  case us_send_error: {
-    this->frame = frame::create_error_frame(this->tftp_error_code);
-    this->socket.async_send_to(this->frame->get_asio_buffer(),
-                               this->remote_endpoint,
-                               std::bind(&upload_server::sender_cb,
-                                         shared_from_this(),
-                                         std::placeholders::_1,
-                                         std::placeholders::_2));
-    return;
-  } break;
-  default: {
-    std::cerr << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage
-              << " state machine reached invalid stage." << std::endl;
-  } break;
-  }
 }
 
-void upload_server::sender_cb(const boost::system::error_code &error, const std::size_t &bytes_sent) {
-  (void)(bytes_sent);
-  // std::cout << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
-  if (error) {
-    std::cerr << this->remote_endpoint << " [" << __func__ << "] error :" << error << std::endl;
+void upload_server::receive_data_cb(const boost::system::error_code &error,
+                                    const std::size_t &bytes_received) {
+  if (this->get_stage() == worker_aborted) {
+    // Abort is happening because of user request
+    this->exit(error::user_requested_abort);
     return;
   }
-  switch (this->stage) {
-  case us_resend_ack:
-  case us_send_ack: {
-    if (this->is_last_frame) {
-      std::cout << this->remote_endpoint << " [" << __func__ << "] has been served." << std::endl;
-      return;
-    }
-    this->stage = us_recv_data;
-    this->receiver();
-    return;
-  } break;
-  case us_send_error: {
-    return;
-  } break;
-  default: {
-    std::cerr << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage
-              << " state machine reached invalid stage." << std::endl;
-  } break;
-  }
-}
-
-void upload_server::receiver() {
-  // std::cout << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
-  switch (this->stage) {
-  case us_recv_data: {
-    this->frame = frame::create_empty_frame();
-    this->socket.async_receive_from(this->frame->get_asio_buffer(),
-                                    this->receive_endpoint,
-                                    std::bind(&upload_server::receiver_cb,
-                                              shared_from_this(),
-                                              std::placeholders::_1,
-                                              std::placeholders::_2));
-    this->timer.expires_after(this->network_timeout);
-    this->timer.async_wait([&](const boost::system::error_code &error) {
-      if (error == boost::asio::error::operation_aborted) {
-        return;
-      }
-      this->stage = us_recv_timeout;
-      std::cout << this->remote_endpoint << " timed out on receive." << std::endl;
-      this->socket.cancel();
-    });
-    return;
-  } break;
-  default: {
-    std::cerr << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage
-              << " state machine reached invalid stage." << std::endl;
-  } break;
-  }
-}
-
-void upload_server::receiver_cb(const boost::system::error_code &error, const std::size_t &bytes_received) {
-  // std::cout << this->remote_endpoint << " [" << __func__ << "] Stage :" << this->stage << std::endl;
-  if (error && error != boost::asio::error::operation_aborted) {
-    std::cout << this->remote_endpoint << " [" << __func__ << "] error :" << error << std::endl;
-    return;
-  }
-  this->timer.cancel();
-  switch (this->stage) {
-  case us_recv_data: {
-    if (this->receive_endpoint != this->remote_endpoint) {
-      this->retry_count++;
-      std::cerr << this->remote_endpoint << " [" << __func__ << "] Received response from wrong endpoint ["
-                << this->receive_endpoint << "]" << std::endl;
-      this->receiver();
-      return;
-    }
-    try {
-      this->frame->resize(bytes_received);
-      this->frame->parse_frame();
-    } catch (framing_exception &e) {
-      std::cerr << this->remote_endpoint << " [" << __func__ << "] Failed to parse data frame"
-                << " Error :" << e.what() << std::endl;
-      this->retry_count++;
-      this->receiver();
-      return;
-    }
-    if (this->frame->get_op_code() != frame::op_data) {
-      std::cerr << this->remote_endpoint << " [" << __func__ << "] Invalid tftp frame received " << std::endl;
-      this->retry_count++;
-      this->receiver();
-      return;
-    }
-    this->retry_count  = 0;
-    this->block_number = this->frame->get_block_number();
-    auto data          = this->frame->get_data_iterator();
-    std::for_each(data.first, data.second, [&](const char &ch) { this->write_stream << ch; });
-    if (data.second - data.first != TFTP_FRAME_MAX_DATA_LEN) {
-      this->is_last_frame = true;
-    }
-    this->stage = us_send_ack;
-    this->sender();
-    return;
-  } break;
-  case us_recv_timeout: {
-    std::cout << this->remote_endpoint << " [" << __func__
-              << "] Resending ack for block number :" << this->block_number << std::endl;
-    if (this->retry_count++ != upload_server::max_retry_count) {
-      this->stage = us_recv_data;
-      this->receiver();
+  if (error == boost::asio::error::operation_aborted) {
+    XDEBUG("Receive timed out for block number %u", this->block_number + 1);
+    WARN("Timed out while waiting for response on %s", to_string(this->socket.local_endpoint()).c_str());
+    if (this->retry_count++ >= this->max_retry_count) {
+      this->exit(error::receive_timeout);
       return;
     } else {
-      std::cerr << this->remote_endpoint << " [" << __func__ << "] Failed to receive any data from client"
-                << std::endl;
-      return;
+      this->send_ack(this->block_number);
     }
     return;
-  } break;
-  default: {
-  } break;
   }
-}*/
+  if (this->remote_endpoint != this->receiver.get_receive_endpoint()) {
+    WARN("Expecting data from %s but received from %s",
+         to_string(this->remote_endpoint).c_str(),
+         to_string(this->receiver.get_receive_endpoint()).c_str());
+    if (this->retry_count++ >= this->max_retry_count) {
+      this->exit(error::invalid_server_response);
+      return;
+    } else {
+      this->receive_data();
+    }
+    return;
+  }
+  try {
+    this->frame->resize(bytes_received);
+    this->frame->parse_frame(frame::op_data);
+  } catch (framing_exception &e) {
+    WARN("Failed to parse response from %s", to_string(this->receiver.get_receive_endpoint()).c_str());
+    this->receive_data();
+    return;
+  }
+  XDEBUG("Received block number %u", this->frame->get_block_number());
+  if (this->block_number + 1 != this->frame->get_block_number()) {
+    WARN("Expected blocks number %u got %u", this->block_number + 1, this->frame->get_block_number());
+    WARN("Block %u is rejected", this->frame->get_block_number());
+    this->send_ack(this->block_number);
+    return;
+  }
+  this->block_number = this->frame->get_block_number();
+  auto itr_pair      = this->frame->get_data_iterator();
+  if (!this->write_handle.write_buffer(itr_pair.first, itr_pair.second)) {
+    // Failed to write to file. Fatal error
+    ERROR("IO Error on file %s. Aborting Upload", this->filename.c_str());
+    this->exit(error::disk_io_error);
+    return;
+  }
+  XDEBUG("Received block number %d", this->block_number);
+  this->retry_count = 0;
+  if (itr_pair.second - itr_pair.first != TFTP_FRAME_MAX_DATA_LEN) {
+    this->is_last_frame = true;
+  }
+  this->send_ack(this->block_number);
+}
+//-----------------------------------------------------------------------------
 
 void spin_tftp_server(boost::asio::io_context &io,
                       frame_csc &first_frame,
@@ -341,11 +289,12 @@ void spin_tftp_server(boost::asio::io_context &io,
   } break;
   case frame::op_write_request: {
     upload_server_config config(remote_endpoint, work_dir, first_frame);
-    /*auto us = upload_server::create(io, config);
-    us->start();*/
+    auto us = upload_server::create(io, config);
+    us->start();
     break;
   }
   default:
+    ERROR("No worker to handle %s", to_string(remote_endpoint).c_str());
     break;
   }
 }
