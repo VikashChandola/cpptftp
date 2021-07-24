@@ -2,10 +2,6 @@
 #define __PROJECT_CONFIG_HPP__
 // Project configuration file
 
-// Sets whether send should be delayed. This parameter is inteded to be used for simulate network delays.
-// This will delay send by given amount of time before sending.
-//#mesondefine CONF_DELAY_SEND
-
 // Enables extensive logging. This prints out execution flow in console. This is different from syslog.
 // These logs are not sent to syslog
 #mesondefine CONF_EXTENSIVE_DEBUG_LOG
