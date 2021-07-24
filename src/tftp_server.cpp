@@ -158,6 +158,8 @@ upload_server::upload_server(boost::asio::io_context &io, const upload_server_co
         to_string(this->remote_endpoint).c_str());
 }
 
+upload_server::~upload_server() { DEBUG("Served client %s", to_string(this->remote_endpoint).c_str()); }
+
 upload_server_s upload_server::create(boost::asio::io_context &io, const upload_server_config &config) {
   upload_server_s self(new upload_server(io, config));
   return self;

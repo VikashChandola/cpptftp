@@ -98,7 +98,7 @@ class upload_server : public server, public std::enable_shared_from_this<upload_
 public:
   static upload_server_s create(boost::asio::io_context &io, const upload_server_config &config);
 
-  ~upload_server() override{};
+  ~upload_server() override;
   void start() override;
   void exit(error_code e) override { (void)(e); };
 
