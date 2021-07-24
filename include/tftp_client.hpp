@@ -138,9 +138,8 @@ public:
    * remote_endpoint  :udp::endpoint object for tftp server. All downloads/uploads from this client will be
    * executed on this endpoint Return : client_s object
    */
-  static client_distributor_s create(boost::asio::io_context &io,
-                                     const udp::endpoint remote_endpoint,
-                                     const std::string work_dir = "./") {
+  static client_distributor_s
+  create(boost::asio::io_context &io, const udp::endpoint remote_endpoint, const std::string work_dir = "") {
     client_distributor_s self(new client_distributor(io, remote_endpoint, work_dir));
     return self;
     // How the fuck was this not crashing ?
@@ -240,7 +239,7 @@ private:
  * code reuse problem. Code composition should have been taken into design consideration ie stratergy pattern.
  * download_client and upload_server shares a lot of code but they can't share it since it has to be placed in
  * base_worker which is not right place.
- * 9. Even better approach for this application would have been to have state machine where execution flows from
- * one state to another. Each state here is a block box(free method on a interface) which have only enough
- * informtation for it's own processing and passes flow to another block box.
+ * 9. Even better approach for this application would have been to have state machine where execution flows
+ * from one state to another. Each state here is a block box(free method on a interface) which have only
+ * enough informtation for it's own processing and passes flow to another block box.
  */
