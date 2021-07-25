@@ -218,7 +218,8 @@ void upload_client::start() {
 
 void upload_client::send_request() {
   XDEBUG("Sending request upload for file %s", this->remote_file_name.c_str());
-  this->frame = frame::create_write_request_frame(this->remote_file_name);
+  this->frame->reset();
+  this->frame->make_write_request_frame(this->remote_file_name);
   this->sender.async_send(
       this->frame->get_asio_buffer(),
       this->remote_endpoint,
