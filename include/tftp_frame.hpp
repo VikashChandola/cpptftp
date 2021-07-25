@@ -81,8 +81,6 @@ public:
 
   static const std::size_t max_data_len = TFTP_FRAME_MAX_DATA_LEN;
 
-  static frame_s create_read_request_frame(const std::string &file_name, const data_mode mode = mode_octet);
-
   template <typename T>
   static frame_s create_data_frame(T itr, const T &itr_end, const uint16_t &block_number) {
     frame_s self = frame::get_base_frame(frame::op_data);
@@ -99,9 +97,9 @@ public:
 
   static frame_s create_empty_frame();
 
-  void make_write_request_frame(const std::string &, const frame::data_mode &mode = mode_octet);
+  void make_read_request_frame(const std::string &, const frame::data_mode &mode = mode_octet);
 
-  void make_request_frame_data(const op_code &, const std::string &, const frame::data_mode &);
+  void make_write_request_frame(const std::string &, const frame::data_mode &mode = mode_octet);
 
   void parse_frame(const op_code &expected_opcode = op_invalid);
 
@@ -137,10 +135,12 @@ public:
     return true;
   }
 
-private:
   frame() : code(op_invalid) {}
 
+private:
   static frame_s get_base_frame(op_code code = op_invalid);
+
+  void make_request_frame_data(const op_code &, const std::string &, const frame::data_mode &);
 
   void append_to_frame(const data_mode &d_mode);
 

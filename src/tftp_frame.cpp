@@ -26,20 +26,8 @@ static std::map<frame::error_code, std::string> error_code_map{
     {frame::no_such_user, "No such user."},
 };
 
-frame_s frame::create_read_request_frame(const std::string &file_name, const frame::data_mode mode) {
-  if (file_name.size() > 255 || file_name.size() < 1) {
-    throw invalid_frame_parameter_exception(
-        "Read request with file name larger than 255 characters or smaller than 1");
-  }
-  frame_s self = frame::get_base_frame(frame::op_read_request);
-  self->code   = frame::op_read_request;
-  self->append_to_frame(file_name);
-  self->file_name = file_name;
-  self->append_to_frame(0x00);
-  self->append_to_frame(mode);
-  self->mode = mode;
-  self->append_to_frame(0x00);
-  return self;
+void frame::make_read_request_frame(const std::string &file_name, const frame::data_mode &mode) {
+  this->make_request_frame_data(frame::op_read_request, file_name, mode);
 }
 
 void frame::make_write_request_frame(const std::string &file_name, const frame::data_mode &mode) {
@@ -53,7 +41,7 @@ void frame::make_request_frame_data(const op_code &rq_code,
     throw stale_frame_exception("A frame can only be constructed from fresh or reset state");
   }
   this->data.push_back(0x00);
-  this->data.push_back(frame::op_write_request);
+  this->data.push_back(rq_code);
   this->code = rq_code;
   this->append_to_frame(file_name);
   this->file_name = file_name;
