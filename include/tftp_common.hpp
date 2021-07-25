@@ -60,6 +60,7 @@ protected:
         socket(io),
         block_number(0),
         retry_count(0),
+        frame(frame::create_empty_frame()),
         worker_stage(worker_constructed) {
     this->socket.open(udp::v4());
   }
