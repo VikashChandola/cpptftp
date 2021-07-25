@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <unordered_map>
 #include <vector>
 
 #include <boost/asio/buffer.hpp>
@@ -41,7 +42,6 @@
 #define TFTP_FRAME_MAX_FRAME_LEN 516
 
 namespace tftp {
-
 class frame;
 typedef std::shared_ptr<frame> frame_s;
 typedef std::shared_ptr<const frame> frame_sc;
@@ -59,6 +59,7 @@ public:
     op_data,
     op_ack,
     op_error,
+    op_oack,
     // op_invalid is not actual op code. This is default opcode symbolizing
     // invalid op code This is required because it's the opcode that sets what
     // all attributes of this object are valid
@@ -108,19 +109,29 @@ public:
 
   std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> get_data_iterator();
 
-  op_code get_op_code() const { return this->code; }
+  op_code get_op_code() const noexcept { return this->code; }
 
-  data_mode get_data_mode();
+  data_mode get_data_mode() const;
 
   uint16_t get_block_number() const;
 
-  error_code get_error_code();
+  error_code get_error_code() const;
 
-  std::string get_error_message();
+  std::string get_error_message() const;
 
   std::string get_filename() const;
 
   void resize(std::size_t new_size) { this->data.resize(new_size); }
+
+  void set_option(const std::string &key, const std::string &value) { options[key] = value; }
+
+  bool get_option(const std::string &key, std::string &value) const noexcept {
+    if (options.find(key) == options.end()) {
+      return false;
+    }
+    value = options.at(key);
+    return true;
+  }
 
 private:
   frame() : code(op_invalid) {}
@@ -143,6 +154,8 @@ private:
     }
   }
 
+  typedef std::unordered_map<std::string, std::string> options_map;
+
   std::vector<char> data;
   op_code code;
   data_mode mode;
@@ -151,6 +164,7 @@ private:
   error_code e_code;
   std::string error_message;
   boost::asio::mutable_buffer buffer;
+  options_map options;
 };
 
 } // namespace tftp

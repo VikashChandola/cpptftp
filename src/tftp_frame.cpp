@@ -144,7 +144,7 @@ std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> 
   return std::make_pair(this->data.cbegin() + 4, this->data.cend());
 }
 
-frame::data_mode frame::get_data_mode() {
+frame::data_mode frame::get_data_mode() const {
   if (this->code == op_data || this->code == op_read_request || this->code == op_write_request) {
     return this->mode;
   }
@@ -159,14 +159,14 @@ uint16_t frame::get_block_number() const {
   throw invalid_frame_parameter_exception("block number can't be provided. Not a data or ack frame");
 }
 
-frame::error_code frame::get_error_code() {
+frame::error_code frame::get_error_code() const {
   if (this->code == op_error) {
     return this->e_code;
   }
   throw invalid_frame_parameter_exception("Error code can't be provided. Not a error frame");
 }
 
-std::string frame::get_error_message() {
+std::string frame::get_error_message() const {
   if (this->code == op_error) {
     std::stringstream ss;
     for (auto ch = this->data.cbegin() + 4; ch < this->data.cend() - 1; ch++) {
