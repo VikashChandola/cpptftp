@@ -29,7 +29,7 @@ static std::map<frame::error_code, std::string> error_code_map{
 frame_s frame::create_read_request_frame(const std::string &file_name, const frame::data_mode mode) {
   if (file_name.size() > 255 || file_name.size() < 1) {
     throw invalid_frame_parameter_exception(
-        "Read request with filename larger than 255 characters or smaller than 1");
+        "Read request with file name larger than 255 characters or smaller than 1");
   }
   frame_s self = frame::get_base_frame(frame::op_read_request);
   self->code   = frame::op_read_request;
@@ -42,11 +42,31 @@ frame_s frame::create_read_request_frame(const std::string &file_name, const fra
   return self;
 }
 
-frame_s frame::create_write_request_frame(const std::string &file_name, const frame::data_mode mode) {
-  frame_s self  = create_read_request_frame(file_name, mode);
-  self->data[1] = frame::op_write_request;
-  self->code    = frame::op_write_request;
-  return self;
+void frame::make_write_request_frame(const std::string &file_name, const frame::data_mode &mode) {
+  this->make_request_frame_data(frame::op_write_request, file_name, mode);
+}
+
+void frame::make_request_frame_data(const op_code &rq_code,
+                                    const std::string &file_name,
+                                    const frame::data_mode &mode) {
+  if (this->data.size() != 0) {
+    throw stale_frame_exception("A frame can only be constructed from fresh or reset state");
+  }
+  this->data.push_back(0x00);
+  this->data.push_back(frame::op_write_request);
+  this->code = rq_code;
+  this->append_to_frame(file_name);
+  this->file_name = file_name;
+  this->append_to_frame(0x00);
+  this->append_to_frame(mode);
+  this->mode = mode;
+  for (const auto &[key, value] : this->options) {
+    this->append_to_frame(0x00);
+    this->append_to_frame(key);
+    this->append_to_frame(0x00);
+    this->append_to_frame(value);
+  }
+  this->append_to_frame(0x00);
 }
 
 frame_s frame::create_ack_frame(const uint16_t &block_number) {
@@ -181,7 +201,16 @@ std::string frame::get_filename() const {
   if (this->code == op_read_request || this->code == op_write_request) {
     return this->file_name;
   }
-  throw invalid_frame_parameter_exception("filename can't be provided. Not a read/write request frame");
+  throw invalid_frame_parameter_exception("file name can't be provided. Not a read/write request frame");
+}
+
+void frame::reset() noexcept {
+  this->options.clear();
+  this->error_message = "";
+  this->file_name     = "";
+  this->block_number  = 0;
+  this->code          = op_invalid;
+  this->data.clear();
 }
 
 // PRIVATE data members

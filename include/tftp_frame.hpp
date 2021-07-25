@@ -83,8 +83,6 @@ public:
 
   static frame_s create_read_request_frame(const std::string &file_name, const data_mode mode = mode_octet);
 
-  static frame_s create_write_request_frame(const std::string &file_name, const data_mode mode = mode_octet);
-
   template <typename T>
   static frame_s create_data_frame(T itr, const T &itr_end, const uint16_t &block_number) {
     frame_s self = frame::get_base_frame(frame::op_data);
@@ -100,6 +98,10 @@ public:
   static frame_s create_error_frame(const error_code &e_code, std::string error_message = "");
 
   static frame_s create_empty_frame();
+
+  void make_write_request_frame(const std::string &, const frame::data_mode &mode = mode_octet);
+
+  void make_request_frame_data(const op_code &, const std::string &, const frame::data_mode &);
 
   void parse_frame(const op_code &expected_opcode = op_invalid);
 
@@ -122,6 +124,8 @@ public:
   std::string get_filename() const;
 
   void resize(std::size_t new_size) { this->data.resize(new_size); }
+
+  void reset() noexcept;
 
   void set_option(const std::string &key, const std::string &value) { options[key] = value; }
 
