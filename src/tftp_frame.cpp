@@ -27,17 +27,17 @@ static std::map<frame::error_code, std::string> error_code_map{
 };
 
 void frame::make_read_request_frame(const std::string &file_name, const frame::data_mode &mode) {
-  this->make_request_frame_data(frame::op_read_request, file_name, mode);
+  this->make_request_frame(frame::op_read_request, file_name, mode);
 }
 
 void frame::make_write_request_frame(const std::string &file_name, const frame::data_mode &mode) {
-  this->make_request_frame_data(frame::op_write_request, file_name, mode);
+  this->make_request_frame(frame::op_write_request, file_name, mode);
 }
 
-void frame::make_request_frame_data(const op_code &rq_code,
-                                    const std::string &file_name,
-                                    const frame::data_mode &mode) {
-  if (this->data.size() != 0) {
+void frame::make_request_frame(const op_code &rq_code,
+                               const std::string &file_name,
+                               const frame::data_mode &mode) {
+  if (!this->is_empty()) {
     throw stale_frame_exception("A frame can only be constructed from fresh or reset state");
   }
   this->data.push_back(0x00);
@@ -57,36 +57,32 @@ void frame::make_request_frame_data(const op_code &rq_code,
   this->append_to_frame(0x00);
 }
 
-frame_s frame::create_ack_frame(const uint16_t &block_number) {
-  frame_s self = frame::get_base_frame(op_ack);
-  self->code   = op_ack;
-  self->append_to_frame(block_number);
-  self->block_number = block_number;
-  return self;
+void frame::make_ack_frame(const uint16_t &block_number) noexcept {
+  this->data.clear();
+  this->data.push_back(0x00);
+  this->data.push_back(op_ack);
+  this->code = op_ack;
+  this->append_to_frame(block_number);
+  this->block_number = block_number;
 }
 
-frame_s frame::create_error_frame(const frame::error_code &e_code, std::string error_message) {
-  frame_s self = frame::get_base_frame(op_error);
-  self->code   = op_error;
-  self->append_to_frame(static_cast<uint16_t>(e_code));
-  self->e_code = e_code;
+void frame::make_error_frame(const frame::error_code &e_code, std::string error_message) {
+  this->data.clear();
+  this->data.push_back(0x00);
+  this->data.push_back(op_error);
+  this->code = op_error;
+  this->append_to_frame(static_cast<uint16_t>(e_code));
+  this->e_code = e_code;
   if (error_message.empty()) {
-    try {
+    if (error_code_map.find(e_code) != error_code_map.end()) {
       error_message = error_code_map.at(e_code);
-    } catch (std::out_of_range &e) {
+    } else {
       error_message = "Unknown error occured";
     }
   }
-  self->append_to_frame(error_message);
-  self->error_message = error_message;
-  self->append_to_frame(0x00);
-  return self;
-}
-
-frame_s frame::create_empty_frame() {
-  auto empty_frame = frame::get_base_frame();
-  empty_frame->data.resize(516);
-  return empty_frame;
+  this->append_to_frame(error_message);
+  this->error_message = error_message;
+  this->append_to_frame(0x00);
 }
 
 void frame::parse_frame(const op_code &expected_opcode) {
@@ -142,14 +138,12 @@ boost::asio::mutable_buffer &frame::get_asio_buffer() {
   return this->buffer;
 }
 
-std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> frame::get_data_iterator() {
-  if (this->code != op_data) {
-    throw framing_exception("Not a data frame");
+frame::const_iterator frame::data_cbegin() const {
+  if (this->code == op_data) {
+    // 4 bytes of header for data frame
+    return 4 + this->data.cbegin();
   }
-  if (this->data.size() < 4) {
-    throw partial_frame_exception("Data frame smaller than 4 bytes");
-  }
-  return std::make_pair(this->data.cbegin() + 4, this->data.cend());
+  throw invalid_frame_parameter_exception("data iterator is only available for data frame");
 }
 
 frame::data_mode frame::get_data_mode() const {
@@ -202,17 +196,6 @@ void frame::reset() noexcept {
 }
 
 // PRIVATE data members
-
-frame_s frame::get_base_frame(frame::op_code code) {
-  frame_s self(new frame()); // can't use std::make_shared<frame>();
-  if (code == op_invalid) {
-    return self;
-  }
-  self->data.push_back(0x00);
-  self->data.push_back(code);
-  self->code = code;
-  return self;
-}
 
 void frame::append_to_frame(const frame::data_mode &d_mode) { this->append_to_frame(data_mode_map[d_mode]); }
 

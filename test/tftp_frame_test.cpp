@@ -1,3 +1,57 @@
+#include "tftp_frame.hpp"
+#include <iomanip>
+#include <iostream>
+void print_frame(const tftp::frame &f) {
+  std::cout << ">>>> [" << std::setw(3) << f.cend() - f.cbegin() << "]";
+  for (auto i = f.cbegin(); i != f.cend(); i++) {
+    std::cout << "0x" << std::setfill('0') << std::setw(2) << std::hex << static_cast<int>(*i) << " ";
+  }
+  std::cout << std::dec << std::endl;
+}
+int main() {
+  tftp::frame f;
+
+  std::cout << "Creating read request frame" << std::endl;
+  f.reset();
+  f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZ0", "ABCDEFGHIJKLMNOPQRSTUVWYZ0");
+  /*f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZA", "ABCDEFGHIJKLMNOPQRSTUVWYZA");
+  f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZB", "ABCDEFGHIJKLMNOPQRSTUVWYZB");
+  f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZC", "ABCDEFGHIJKLMNOPQRSTUVWYZC");
+  f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZD", "ABCDEFGHIJKLMNOPQRSTUVWYZD");
+  f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZE", "ABCDEFGHIJKLMNOPQRSTUVWYZE");
+  f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZF", "ABCDEFGHIJKLMNOPQRSTUVWYZF");
+  f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZG", "ABCDEFGHIJKLMNOPQRSTUVWYZG");
+  f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZH", "ABCDEFGHIJKLMNOPQRSTUVWYZH");
+  f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZJ", "ABCDEFGHIJKLMNOPQRSTUVWYZJ");*/
+
+  f.make_read_request_frame("somefile");
+  print_frame(f);
+
+  std::cout << "Creating write request frame" << std::endl;
+  f.reset();
+  f.make_write_request_frame("somefile");
+  print_frame(f);
+
+  std::cout << "Creating write request frame" << std::endl;
+  f.reset();
+  f.make_write_request_frame("somefile");
+  print_frame(f);
+
+  std::cout << "Creating ack frame" << std::endl;
+  f.reset();
+  f.make_ack_frame(15);
+  print_frame(f);
+
+  std::string s("123456789");
+  std::cout << "Creating data frame" << std::endl;
+  f.reset();
+  f.make_data_frame(s.cbegin(), s.cend(), 15);
+  print_frame(f);
+
+  std::cout << "Done" << std::endl;
+  return 0;
+}
+/*
 #define BOOST_TEST_MODULE tftp frame
 
 #include <algorithm>
@@ -198,3 +252,4 @@ BOOST_DATA_TEST_CASE(error_frame_creation, bdata::make(error_frame_dataset()), t
   }
   BOOST_TEST(*(f_data.cend() - 1) == 0x00, "Last byte of ack frame is not 0x00");
 }
+*/
