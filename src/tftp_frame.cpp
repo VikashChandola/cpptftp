@@ -192,7 +192,6 @@ void frame::reset() noexcept {
   this->file_name     = "";
   this->block_number  = 0;
   this->code          = op_invalid;
-  this->data.clear();
 }
 
 // PRIVATE data members
