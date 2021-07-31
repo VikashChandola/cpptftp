@@ -12,7 +12,7 @@ int main() {
   tftp::frame f;
 
   std::cout << "Creating read request frame" << std::endl;
-  f.reset();
+  //f.reset();
   f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZ0", "ABCDEFGHIJKLMNOPQRSTUVWYZ0");
   /*f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZA", "ABCDEFGHIJKLMNOPQRSTUVWYZA");
   f.set_option("ABCDEFGHIJKLMNOPQRSTUVWYZB", "ABCDEFGHIJKLMNOPQRSTUVWYZB");
@@ -28,23 +28,23 @@ int main() {
   print_frame(f);
 
   std::cout << "Creating write request frame" << std::endl;
-  f.reset();
+  //f.reset();
   f.make_write_request_frame("somefile");
   print_frame(f);
 
   std::cout << "Creating write request frame" << std::endl;
-  f.reset();
+  //f.reset();
   f.make_write_request_frame("somefile");
   print_frame(f);
 
   std::cout << "Creating ack frame" << std::endl;
-  f.reset();
+  //f.reset();
   f.make_ack_frame(15);
   print_frame(f);
 
   std::string s("123456789");
   std::cout << "Creating data frame" << std::endl;
-  f.reset();
+  //f.reset();
   f.make_data_frame(s.cbegin(), s.cend(), 15);
   print_frame(f);
 
