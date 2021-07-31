@@ -68,6 +68,7 @@ public:
 
   void parse_frame(const op_code &expected_opcode = op_invalid);
 
+  boost::asio::mutable_buffer &get_asio_buffer_for_recv();
   boost::asio::mutable_buffer &get_asio_buffer();
 
   typedef std::vector<char>::const_iterator const_iterator;
@@ -93,8 +94,6 @@ public:
   std::string get_filename() const;
 
   void resize(std::size_t new_size) { this->data.resize(new_size); }
-
-  void reset() noexcept;
 
   void set_option(const std::string &key, const std::string &value) { options[key] = value; }
 
@@ -130,8 +129,6 @@ private:
       itr++;
     }
   }
-
-  bool is_empty() { return this->data.size() == 0; }
 
   typedef std::unordered_map<std::string, std::string> options_map;
   std::vector<char> data;

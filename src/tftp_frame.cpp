@@ -26,25 +26,23 @@ static std::map<frame::error_code, std::string> error_code_map{
     {frame::no_such_user, "No such user."},
 };
 
-void frame::make_read_request_frame(const std::string &file_name, const frame::data_mode &mode) {
-  this->make_request_frame(frame::op_read_request, file_name, mode);
+void frame::make_read_request_frame(const std::string &_file_name, const frame::data_mode &mode) {
+  this->make_request_frame(frame::op_read_request, _file_name, mode);
 }
 
-void frame::make_write_request_frame(const std::string &file_name, const frame::data_mode &mode) {
-  this->make_request_frame(frame::op_write_request, file_name, mode);
+void frame::make_write_request_frame(const std::string &_file_name, const frame::data_mode &mode) {
+  this->make_request_frame(frame::op_write_request, _file_name, mode);
 }
 
 void frame::make_request_frame(const op_code &rq_code,
-                               const std::string &file_name,
+                               const std::string &_file_name,
                                const frame::data_mode &mode) {
-  if (!this->is_empty()) {
-    throw stale_frame_exception("A frame can only be constructed from fresh or reset state");
-  }
+  this->data.clear();
   this->data.push_back(0x00);
   this->data.push_back(rq_code);
   this->code = rq_code;
-  this->append_to_frame(file_name);
-  this->file_name = file_name;
+  this->append_to_frame(_file_name);
+  this->file_name = _file_name;
   this->append_to_frame(0x00);
   this->append_to_frame(mode);
   this->mode = mode;
@@ -133,8 +131,17 @@ void frame::parse_frame(const op_code &expected_opcode) {
   }
 }
 
+boost::asio::mutable_buffer &frame::get_asio_buffer_for_recv() {
+  // this->buffer = boost::asio::mutable_buffer(&this->data[0], this->data.capacity()* sizeof(data[0]));
+  this->resize(MAX_BASE_FRAME_LEN);
+  return this->get_asio_buffer();
+  // return this->buffer;
+}
+
 boost::asio::mutable_buffer &frame::get_asio_buffer() {
-  this->buffer = boost::asio::buffer(this->data);
+  // this->buffer = boost::asio::buffer(&this->data[0], this->data.capacity());
+  this->buffer = boost::asio::mutable_buffer(&this->data[0], this->data.size() * sizeof(data[0]));
+  // Do frame even need to keep a reference to buffer ?
   return this->buffer;
 }
 
@@ -184,14 +191,6 @@ std::string frame::get_filename() const {
     return this->file_name;
   }
   throw invalid_frame_parameter_exception("file name can't be provided. Not a read/write request frame");
-}
-
-void frame::reset() noexcept {
-  this->options.clear();
-  this->error_message = "";
-  this->file_name     = "";
-  this->block_number  = 0;
-  this->code          = op_invalid;
 }
 
 // PRIVATE data members
