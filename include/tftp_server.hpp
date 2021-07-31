@@ -33,17 +33,15 @@ typedef std::shared_ptr<download_server> download_server_s;
 
 class server_config : public base_config {
 public:
-  frame_csc frame;
   std::string filename;
   server_config(const udp::endpoint &remote_endpoint,
                 const std::string &work_dir,
-                frame_csc &frame,
+                const frame &first_frame,
                 const ms_duration network_timeout = ms_duration(CONF_NETWORK_TIMEOUT),
                 const uint16_t max_retry_count    = CONF_MAX_RETRY_COUNT,
                 duration_generator_s delay_gen    = nullptr)
       : base_config(remote_endpoint, network_timeout, max_retry_count, delay_gen),
-        frame(frame),
-        filename(work_dir + "/" + frame->get_filename()) {}
+        filename(work_dir + "/" + first_frame.get_filename()) {}
 };
 
 class download_server_config : public server_config {
@@ -64,7 +62,6 @@ protected:
   udp::endpoint receive_endpoint;
   std::string filename;
   bool is_last_frame;
-  frame::error_code tftp_error_code;
 };
 
 class download_server : public server, public std::enable_shared_from_this<download_server> {
@@ -151,7 +148,7 @@ private:
   server_distributor(boost::asio::io_context &io, const udp::endpoint &local_endpoint, std::string &work_dir);
 
   // These two data members are forcing server_distributor to accept one connection at a time
-  frame_s first_frame;
+  frame first_frame;
   udp::endpoint remote_endpoint;
 
   boost::asio::io_context &io;

@@ -26,59 +26,61 @@ static std::map<frame::error_code, std::string> error_code_map{
     {frame::no_such_user, "No such user."},
 };
 
-frame_s frame::create_read_request_frame(const std::string &file_name, const frame::data_mode mode) {
-  if (file_name.size() > 255 || file_name.size() < 1) {
-    throw invalid_frame_parameter_exception(
-        "Read request with filename larger than 255 characters or smaller than 1");
+void frame::make_read_request_frame(const std::string &_file_name, const frame::data_mode &mode) {
+  this->make_request_frame(frame::op_read_request, _file_name, mode);
+}
+
+void frame::make_write_request_frame(const std::string &_file_name, const frame::data_mode &mode) {
+  this->make_request_frame(frame::op_write_request, _file_name, mode);
+}
+
+void frame::make_request_frame(const op_code &rq_code,
+                               const std::string &_file_name,
+                               const frame::data_mode &mode) {
+  this->data.clear();
+  this->data.push_back(0x00);
+  this->data.push_back(rq_code);
+  this->code = rq_code;
+  this->append_to_frame(_file_name);
+  this->file_name = _file_name;
+  this->append_to_frame(0x00);
+  this->append_to_frame(mode);
+  this->mode = mode;
+  for (const auto &[key, value] : this->options) {
+    this->append_to_frame(0x00);
+    this->append_to_frame(key);
+    this->append_to_frame(0x00);
+    this->append_to_frame(value);
   }
-  frame_s self = frame::get_base_frame(frame::op_read_request);
-  self->code   = frame::op_read_request;
-  self->append_to_frame(file_name);
-  self->file_name = file_name;
-  self->append_to_frame(0x00);
-  self->append_to_frame(mode);
-  self->mode = mode;
-  self->append_to_frame(0x00);
-  return self;
+  this->append_to_frame(0x00);
 }
 
-frame_s frame::create_write_request_frame(const std::string &file_name, const frame::data_mode mode) {
-  frame_s self  = create_read_request_frame(file_name, mode);
-  self->data[1] = frame::op_write_request;
-  self->code    = frame::op_write_request;
-  return self;
+void frame::make_ack_frame(const uint16_t &block_number) noexcept {
+  this->data.clear();
+  this->data.push_back(0x00);
+  this->data.push_back(op_ack);
+  this->code = op_ack;
+  this->append_to_frame(block_number);
+  this->block_number = block_number;
 }
 
-frame_s frame::create_ack_frame(const uint16_t &block_number) {
-  frame_s self = frame::get_base_frame(op_ack);
-  self->code   = op_ack;
-  self->append_to_frame(block_number);
-  self->block_number = block_number;
-  return self;
-}
-
-frame_s frame::create_error_frame(const frame::error_code &e_code, std::string error_message) {
-  frame_s self = frame::get_base_frame(op_error);
-  self->code   = op_error;
-  self->append_to_frame(static_cast<uint16_t>(e_code));
-  self->e_code = e_code;
+void frame::make_error_frame(const frame::error_code &e_code, std::string error_message) {
+  this->data.clear();
+  this->data.push_back(0x00);
+  this->data.push_back(op_error);
+  this->code = op_error;
+  this->append_to_frame(static_cast<uint16_t>(e_code));
+  this->e_code = e_code;
   if (error_message.empty()) {
-    try {
+    if (error_code_map.find(e_code) != error_code_map.end()) {
       error_message = error_code_map.at(e_code);
-    } catch (std::out_of_range &e) {
+    } else {
       error_message = "Unknown error occured";
     }
   }
-  self->append_to_frame(error_message);
-  self->error_message = error_message;
-  self->append_to_frame(0x00);
-  return self;
-}
-
-frame_s frame::create_empty_frame() {
-  auto empty_frame = frame::get_base_frame();
-  empty_frame->data.resize(516);
-  return empty_frame;
+  this->append_to_frame(error_message);
+  this->error_message = error_message;
+  this->append_to_frame(0x00);
 }
 
 void frame::parse_frame(const op_code &expected_opcode) {
@@ -129,22 +131,29 @@ void frame::parse_frame(const op_code &expected_opcode) {
   }
 }
 
+boost::asio::mutable_buffer &frame::get_asio_buffer_for_recv() {
+  // this->buffer = boost::asio::mutable_buffer(&this->data[0], this->data.capacity()* sizeof(data[0]));
+  this->resize(MAX_BASE_FRAME_LEN);
+  return this->get_asio_buffer();
+  // return this->buffer;
+}
+
 boost::asio::mutable_buffer &frame::get_asio_buffer() {
-  this->buffer = boost::asio::buffer(this->data);
+  // this->buffer = boost::asio::buffer(&this->data[0], this->data.capacity());
+  this->buffer = boost::asio::mutable_buffer(&this->data[0], this->data.size() * sizeof(data[0]));
+  // Do frame even need to keep a reference to buffer ?
   return this->buffer;
 }
 
-std::pair<std::vector<char>::const_iterator, std::vector<char>::const_iterator> frame::get_data_iterator() {
-  if (this->code != op_data) {
-    throw framing_exception("Not a data frame");
+frame::const_iterator frame::data_cbegin() const {
+  if (this->code == op_data) {
+    // 4 bytes of header for data frame
+    return 4 + this->data.cbegin();
   }
-  if (this->data.size() < 4) {
-    throw partial_frame_exception("Data frame smaller than 4 bytes");
-  }
-  return std::make_pair(this->data.cbegin() + 4, this->data.cend());
+  throw invalid_frame_parameter_exception("data iterator is only available for data frame");
 }
 
-frame::data_mode frame::get_data_mode() {
+frame::data_mode frame::get_data_mode() const {
   if (this->code == op_data || this->code == op_read_request || this->code == op_write_request) {
     return this->mode;
   }
@@ -159,14 +168,14 @@ uint16_t frame::get_block_number() const {
   throw invalid_frame_parameter_exception("block number can't be provided. Not a data or ack frame");
 }
 
-frame::error_code frame::get_error_code() {
+frame::error_code frame::get_error_code() const {
   if (this->code == op_error) {
     return this->e_code;
   }
   throw invalid_frame_parameter_exception("Error code can't be provided. Not a error frame");
 }
 
-std::string frame::get_error_message() {
+std::string frame::get_error_message() const {
   if (this->code == op_error) {
     std::stringstream ss;
     for (auto ch = this->data.cbegin() + 4; ch < this->data.cend() - 1; ch++) {
@@ -181,21 +190,10 @@ std::string frame::get_filename() const {
   if (this->code == op_read_request || this->code == op_write_request) {
     return this->file_name;
   }
-  throw invalid_frame_parameter_exception("filename can't be provided. Not a read/write request frame");
+  throw invalid_frame_parameter_exception("file name can't be provided. Not a read/write request frame");
 }
 
 // PRIVATE data members
-
-frame_s frame::get_base_frame(frame::op_code code) {
-  frame_s self(new frame()); // can't use std::make_shared<frame>();
-  if (code == op_invalid) {
-    return self;
-  }
-  self->data.push_back(0x00);
-  self->data.push_back(code);
-  self->code = code;
-  return self;
-}
 
 void frame::append_to_frame(const frame::data_mode &d_mode) { this->append_to_frame(data_mode_map[d_mode]); }
 

@@ -41,5 +41,11 @@ class frame_type_mismatch_exception : public framing_exception {
   using framing_exception::framing_exception;
 };
 
+// Frame is stale. A make request on frame only be executed on fresh frame or frame that has been reset
+// This will be thrown if user dares to make a frame out of stale frame.
+class stale_frame_exception : public framing_exception {
+  using framing_exception::framing_exception;
+};
+
 } // namespace tftp
 #endif //__TFTP_EXCEPTION_H__

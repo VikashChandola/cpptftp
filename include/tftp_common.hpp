@@ -60,6 +60,7 @@ protected:
         socket(io),
         block_number(0),
         retry_count(0),
+        network_frame(),
         worker_stage(worker_constructed) {
     this->socket.open(udp::v4());
   }
@@ -71,7 +72,7 @@ protected:
   udp::socket socket;
   uint16_t block_number;
   uint16_t retry_count;
-  frame_s frame;
+  frame network_frame;
 
 private:
   run_stage worker_stage;
