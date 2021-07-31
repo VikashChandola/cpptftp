@@ -15,7 +15,7 @@ configure_file(input: 'project_config.hpp.in', output: 'project_config.hpp', con
 
 run_command('cp', '-r', join_paths(meson.source_root(), 'test/bin/'), meson.build_root())
 run_command('chmod', '+x', join_paths(meson.build_root(), 'bin/setup_tests.sh'))
-run_command('bash', join_paths(meson.build_root(), 'bin/setup_tests.sh'), meson.build_root())
+run_command('bash', join_paths(meson.build_root(), 'bin/setup_tests.sh'), meson.build_root(), join_paths(meson.build_root(),'bin/'))
 
 cpp = meson.get_compiler('cpp')
 dep_pthread = cpp.find_library('pthread', required: true)
