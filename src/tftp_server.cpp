@@ -62,7 +62,6 @@ void download_server::send_data(const bool &resend) {
   } else {
     INFO("%s Resending block number", to_string(this->remote_endpoint).c_str());
   }
-  this->network_frame.reset();
   this->network_frame.make_data_frame(
       &this->data[0],
       std::min(&this->data[this->data_size], &this->data[TFTP_FRAME_MAX_DATA_LEN]),
@@ -78,8 +77,7 @@ void download_server::send_data(const bool &resend) {
 }
 
 void download_server::receive_ack() {
-  this->network_frame.reset();
-  this->receiver.async_receive(this->network_frame.get_asio_buffer(),
+  this->receiver.async_receive(this->network_frame.get_asio_buffer_for_recv(),
                                std::bind(&download_server::receive_ack_cb,
                                          shared_from_this(),
                                          std::placeholders::_1,
@@ -139,7 +137,6 @@ void download_server::receive_ack_cb(const boost::system::error_code &error,
 }
 
 void download_server::send_error(const frame::error_code &e_code, const std::string &message) {
-  this->network_frame.reset();
   this->network_frame.make_error_frame(e_code, message);
   this->sender.async_send(
       this->network_frame.get_asio_buffer(),
@@ -180,7 +177,6 @@ void upload_server::start() {
 }
 
 void upload_server::send_error(const frame::error_code &e_code, const std::string &message) {
-  this->network_frame.reset();
   this->network_frame.make_error_frame(e_code, message);
   this->sender.async_send(
       this->network_frame.get_asio_buffer(),
@@ -192,7 +188,6 @@ void upload_server::send_error(const frame::error_code &e_code, const std::strin
 
 void upload_server::send_ack(const uint16_t &block_num) {
   XDEBUG("Sending ack for block number %u", block_num);
-  this->network_frame.reset();
   this->network_frame.make_ack_frame(block_num);
   this->sender.async_send(
       this->network_frame.get_asio_buffer(),
@@ -213,8 +208,7 @@ void upload_server::send_ack(const uint16_t &block_num) {
 
 void upload_server::receive_data() {
   XDEBUG("Waiting for data from :%s", to_string(this->remote_endpoint).c_str());
-  this->network_frame.reset();
-  this->receiver.async_receive(this->network_frame.get_asio_buffer(),
+  this->receiver.async_receive(this->network_frame.get_asio_buffer_for_recv(),
                                std::bind(&upload_server::receive_data_cb,
                                          shared_from_this(),
                                          std::placeholders::_1,
@@ -267,8 +261,7 @@ void upload_server::receive_data_cb(const boost::system::error_code &error,
     return;
   }
   this->block_number = this->network_frame.get_block_number();
-  if (!this->write_handle.write_buffer(this->network_frame.data_cbegin(),
-                                       this->network_frame.data_cbegin())) {
+  if (!this->write_handle.write_buffer(this->network_frame.data_cbegin(), this->network_frame.data_cend())) {
     // Failed to write to file. Fatal error
     ERROR("IO Error on file %s. Aborting Upload", this->filename.c_str());
     this->exit(error::disk_io_error);
@@ -332,8 +325,7 @@ uint64_t server_distributor::stop_service() {
 }
 
 void server_distributor::perform_distribution() {
-  this->first_frame.reset();
-  this->socket.async_receive_from(this->first_frame.get_asio_buffer(),
+  this->socket.async_receive_from(this->first_frame.get_asio_buffer_for_recv(),
                                   this->remote_endpoint,
                                   std::bind(&server_distributor::perform_distribution_cb,
                                             shared_from_this(),
