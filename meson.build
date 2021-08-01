@@ -1,6 +1,5 @@
 project('cpptftp', 'cpp',
         default_options:['cpp_std=c++17',
-                         'b_sanitize=address',
                          'b_lundef=false',
                          'warning_level=3'])
 
