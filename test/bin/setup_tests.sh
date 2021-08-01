@@ -8,7 +8,7 @@ server_dir="$1/server_dir"
 client_dir="$1/client_dir"
 mkdir -p $server_dir
 mkdir -p $client_dir
-client_tests="$1/simple_client_test.sh"
+client_tests="$1/test_all.sh"
 echo "#!/bin/bash" > $client_tests
 cat $2/frag_pre_check.sh >> $client_tests
 echo "Creating sample files for test in $server_dir ..."
