@@ -37,6 +37,9 @@ void frame::make_write_request_frame(const std::string &_file_name, const frame:
 void frame::make_request_frame(const op_code &rq_code,
                                const std::string &_file_name,
                                const frame::data_mode &mode) {
+  if (_file_name.size() > 255 || _file_name.size() < 1) {
+    throw invalid_frame_parameter_exception("file name is length is not in in range [1,255]");
+  }
   this->data.clear();
   this->data.push_back(0x00);
   this->data.push_back(rq_code);
