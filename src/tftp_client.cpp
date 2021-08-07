@@ -241,7 +241,8 @@ void upload_client::receive_ack_cb(const boost::system::error_code &error, const
     return;
   }
   if (error == boost::asio::error::operation_aborted) {
-    WARN("%s, Timed out while waiting while wait for response", to_string(this->remote_endpoint).c_str());
+    WARN("Timed out while waiting while waiting for response on %s",
+         to_string(this->socket.local_endpoint()).c_str());
     if (this->retry_count++ >= this->max_retry_count) {
       this->exit(error::receive_timeout);
       return;
@@ -312,7 +313,7 @@ void upload_client::send_data(bool resend) {
     is_last_block = (TFTP_FRAME_MAX_DATA_LEN != this->data_size);
     this->block_number++;
   } else {
-    INFO("%s Resending block number", to_string(this->remote_endpoint).c_str());
+    INFO("Resending block number %d", this->block_number);
   }
   this->network_frame.make_data_frame(
       &this->data[0],
