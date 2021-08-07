@@ -57,7 +57,6 @@ public:
     this->append_to_frame(itr, std::min(itr_end, itr + max_data_len));
   }
 
-  // Methods to create a frame. frame must be reset before calling make_* functions
   void make_ack_frame(const uint16_t &block_number) noexcept;
 
   void make_error_frame(const error_code &e_code, std::string error_message = "");
@@ -103,6 +102,18 @@ public:
     }
     value = options.at(key);
     return true;
+  }
+
+  void clear_option(const std::string &key = "") {
+    if (key.empty()) {
+      this->options.clear();
+    } else {
+      auto key_itr = this->options.find(key);
+      if (key_itr == this->options.end()) {
+        return;
+      }
+      this->options.erase(key_itr);
+    }
   }
 
   frame() : code(op_invalid) { this->data.resize(MAX_BASE_FRAME_LEN); }
