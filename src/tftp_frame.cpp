@@ -89,8 +89,16 @@ void frame::make_error_frame(const frame::error_code &e_code, std::string error_
   this->error_message = error_message;
   this->append_to_frame(0x00);
 }
-
 void frame::parse_frame(const op_code &expected_opcode) {
+  this->parse_frame();
+  if (this->code != expected_opcode) {
+    std::stringstream ss;
+    ss << "Expected op code" << expected_opcode << " Got " << this->code;
+    throw frame_type_mismatch_exception(ss.str());
+  }
+}
+
+void frame::parse_frame() {
   if (this->data.size() < 4) {
     throw framing_exception("Can't parse frame with length smaller than 4");
   }
@@ -130,11 +138,6 @@ void frame::parse_frame(const op_code &expected_opcode) {
   default: {
     throw invalid_frame_parameter_exception("Invalid OP code");
   } break;
-  }
-  if (expected_opcode != op_invalid && this->code != expected_opcode) {
-    std::stringstream ss;
-    ss << "Expected op code" << expected_opcode << " Got " << this->code;
-    throw frame_type_mismatch_exception(ss.str());
   }
 }
 

@@ -69,7 +69,9 @@ public:
 
   void make_write_request_frame(const std::string &, const frame::data_mode &mode = mode_octet);
 
-  void parse_frame(const op_code &expected_opcode = op_invalid);
+  void parse_frame(const op_code &expected_opcode);
+
+  void parse_frame();
 
   boost::asio::mutable_buffer &get_asio_buffer_for_recv();
   boost::asio::mutable_buffer &get_asio_buffer();
