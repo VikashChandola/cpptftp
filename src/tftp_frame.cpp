@@ -26,9 +26,30 @@ static std::map<frame::error_code, std::string> error_code_map{
     {frame::no_such_user, "No such user."},
 };
 
-static std::map<frame::option_key, std::string> option_key_map{
+std::map<frame::option_key, std::string> option_key_map{
     {frame::option_blksize, "blksize"},
 };
+
+static frame::option_key get_option_key_for_string(const std::string &string_key) {
+  for (const auto &[key, str_key] : option_key_map) {
+    if (str_key == string_key) {
+      return key;
+    }
+  }
+  std::stringstream ss;
+  ss << "Invalid option key [" << string_key << "]";
+  throw invalid_option_exception(ss.str());
+}
+
+static std::string move_word(std::vector<char>::const_iterator &itr,
+                             const std::vector<char>::const_iterator &itr_end) {
+  std::stringstream ss;
+  while (itr < itr_end && (*itr != 0x00)) {
+    ss << *itr;
+    itr++;
+  }
+  return ss.str();
+}
 
 void frame::make_read_request_frame(const std::string &_file_name, const frame::data_mode &mode) {
   this->make_request_frame(frame::op_read_request, _file_name, mode);
@@ -118,7 +139,12 @@ void frame::parse_frame() {
       itr++;
     }
     this->file_name = ss.str();
-    // one can parse mode from here, but who cares for mode
+    itr++;
+    while (*itr != 0x00 && itr < this->data.cend()) {
+      itr++;
+    }
+    itr++;
+    this->parse_options(itr++, this->data.cend());
   } break;
   case op_data: {
     if (itr + 2 > this->data.cend()) {
@@ -135,15 +161,33 @@ void frame::parse_frame() {
     this->e_code = static_cast<frame::error_code>((static_cast<uint16_t>(static_cast<uint8_t>(*itr)) << 8) +
                                                   (static_cast<uint16_t>(static_cast<uint8_t>(*(itr + 1)))));
   } break;
+  case op_oack: {
+  } break;
   default: {
     throw invalid_frame_parameter_exception("Invalid OP code");
   } break;
   }
 }
 
+void frame::parse_options(std::vector<char>::const_iterator itr,
+                          const std::vector<char>::const_iterator &itr_end) {
+  while (itr < itr_end) {
+    std::string key = move_word(itr, itr_end);
+    itr++;
+    std::string value = move_word(itr, itr_end);
+    if (key.empty() || value.empty()) {
+      std::stringstream ss;
+      ss << "Failed to parse options key :[" << key << "] value [" << value << "]";
+      throw invalid_option_exception(ss.str());
+    }
+    this->options.insert({get_option_key_for_string(key), value});
+    itr++;
+  }
+}
+
 boost::asio::mutable_buffer &frame::get_asio_buffer_for_recv() {
   // this->buffer = boost::asio::mutable_buffer(&this->data[0], this->data.capacity()* sizeof(data[0]));
-  this->resize(MAX_BASE_FRAME_LEN);
+  this->resize(this->block_size);
   return this->get_asio_buffer();
   // return this->buffer;
 }

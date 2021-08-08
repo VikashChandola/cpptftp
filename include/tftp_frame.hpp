@@ -47,8 +47,6 @@ public:
     option_blksize = 0,
   };
 
-  static const std::size_t max_data_len = TFTP_FRAME_MAX_DATA_LEN;
-
   template <typename T>
   void make_data_frame(T itr, const T &itr_end, const uint16_t &block_number) {
     this->data.clear();
@@ -58,7 +56,7 @@ public:
     this->code = frame::op_data;
     this->append_to_frame(block_number);
     this->block_number = block_number;
-    this->append_to_frame(itr, std::min(itr_end, itr + max_data_len));
+    this->append_to_frame(itr, std::min(itr_end, itr + this->block_size));
   }
 
   void make_ack_frame(const uint16_t &block_number) noexcept;
@@ -73,7 +71,10 @@ public:
 
   void parse_frame();
 
+  void parse_options(std::vector<char>::const_iterator itr, const std::vector<char>::const_iterator &itr_end);
+
   boost::asio::mutable_buffer &get_asio_buffer_for_recv();
+
   boost::asio::mutable_buffer &get_asio_buffer();
 
   typedef std::vector<char>::const_iterator const_iterator;
@@ -112,7 +113,9 @@ public:
 
   void clear_option() noexcept { this->options.clear(); }
 
-  frame() : code(op_invalid) { this->data.resize(MAX_BASE_FRAME_LEN); }
+  void set_block_size(uint16_t _block_size){ this->block_size = _block_size; }
+
+  frame() : code(op_invalid), block_size(TFTP_FRAME_MAX_DATA_LEN + 4) { this->data.resize(this->block_size); }
 
   // No copy
   frame(frame &) = delete;
@@ -147,6 +150,7 @@ private:
   std::string error_message;
   boost::asio::mutable_buffer buffer;
   options_map options;
+  uint16_t block_size;
 };
 } // namespace tftp
 #endif

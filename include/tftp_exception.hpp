@@ -47,5 +47,9 @@ class stale_frame_exception : public framing_exception {
   using framing_exception::framing_exception;
 };
 
+class invalid_option_exception : public framing_exception {
+  using framing_exception::framing_exception;
+};
+
 } // namespace tftp
 #endif //__TFTP_EXCEPTION_H__
