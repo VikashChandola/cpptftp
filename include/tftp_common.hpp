@@ -17,11 +17,13 @@ public:
   base_config(const udp::endpoint &remote_endpoint,
               const ms_duration network_timeout,
               const uint16_t max_retry_count,
-              duration_generator_s delay_gen)
+              duration_generator_s delay_gen,
+              uint16_t block_size = TFTP_FRAME_MAX_DATA_LEN)
       : remote_endpoint(remote_endpoint),
         network_timeout(network_timeout),
         max_retry_count(max_retry_count),
-        delay_gen(delay_gen) {
+        delay_gen(delay_gen),
+        block_size(block_size) {
     if (delay_gen == nullptr) {
       this->delay_gen =
           std::make_shared<constant_duration_generator>(ms_duration(CONF_CONSTANT_DELAY_DURATION));
@@ -32,6 +34,7 @@ public:
   const ms_duration network_timeout;
   const uint16_t max_retry_count;
   duration_generator_s delay_gen;
+  uint16_t block_size;
 };
 
 class base_worker {
@@ -61,8 +64,10 @@ protected:
         block_number(0),
         retry_count(0),
         network_frame(),
+        block_size(config.block_size),
         worker_stage(worker_constructed) {
     this->socket.open(udp::v4());
+    this->network_frame.clear_option();
   }
   virtual void exit(error_code e) = 0;
 
@@ -73,6 +78,7 @@ protected:
   uint16_t block_number;
   uint16_t retry_count;
   frame network_frame;
+  uint16_t block_size;
 
 private:
   run_stage worker_stage;

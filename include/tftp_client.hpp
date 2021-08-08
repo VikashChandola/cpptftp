@@ -43,10 +43,11 @@ public:
                 const std::string &remote_file_name,
                 const std::string &local_file_name,
                 client_completion_callback callback,
+                const uint16_t &block_size        = TFTP_FRAME_MAX_DATA_LEN,
                 const ms_duration network_timeout = ms_duration(CONF_NETWORK_TIMEOUT),
                 const uint16_t max_retry_count    = CONF_MAX_RETRY_COUNT,
                 duration_generator_s delay_gen    = nullptr)
-      : base_config(remote_endpoint, network_timeout, max_retry_count, delay_gen),
+      : base_config(remote_endpoint, network_timeout, max_retry_count, delay_gen, block_size),
         remote_file_name(remote_file_name),
         local_file_name(local_file_name),
         callback(callback) {}
@@ -111,7 +112,7 @@ public:
 
 private:
   upload_client(boost::asio::io_context &io, const upload_client_config &config);
-  void send_request();
+  void send_request() override;
   void receive_ack();
   void receive_ack_cb(const boost::system::error_code &error, const std::size_t bytes_received);
   void send_data(bool resend = false);
@@ -155,11 +156,13 @@ public:
    */
   void download_file(const std::string &remote_file_name,
                      const std::string &local_file_name,
-                     client_completion_callback download_callback) {
+                     client_completion_callback download_callback,
+                     const uint16_t &block_size) {
     download_client_config config(this->remote_endpoint,
                                   remote_file_name,
                                   this->work_dir + local_file_name,
-                                  download_callback);
+                                  download_callback,
+                                  block_size);
     auto worker = download_client::create(this->io, config);
     worker->start();
   }
@@ -172,11 +175,13 @@ public:
    */
   void upload_file(const std::string &remote_file_name,
                    std::string local_file_name,
-                   client_completion_callback upload_callback) {
+                   client_completion_callback upload_callback,
+                   const uint16_t &block_size) {
     upload_client_config config(this->remote_endpoint,
                                 remote_file_name,
                                 this->work_dir + local_file_name,
-                                upload_callback);
+                                upload_callback,
+                                block_size);
     auto worker = upload_client::create(this->io, config);
     worker->start();
   }

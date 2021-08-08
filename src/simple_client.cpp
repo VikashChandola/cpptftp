@@ -15,8 +15,9 @@ void cb(const std::string &filename, tftp::error_code e) {
 int main(int argc, char **argv) {
   int opt;
   std::string ip, port, work_dir, filename;
+  uint16_t block_size                                                     = TFTP_FRAME_MAX_DATA_LEN;
   enum { Operation_upload, Operation_download, Operation_none } operation = Operation_none;
-  while ((opt = getopt(argc, argv, "H:P:W:D:U:h")) != -1) {
+  while ((opt = getopt(argc, argv, "H:P:W:D:U:B:h")) != -1) {
     switch (opt) {
     case 'H':
       ip = std::string(optarg);
@@ -39,6 +40,10 @@ int main(int argc, char **argv) {
       filename  = std::string(optarg);
       operation = Operation_download;
       std::cout << "Operation \t\t:Download\nFile \t\t\t:" << filename << std::endl;
+      break;
+    case 'B':
+      block_size = static_cast<uint16_t>(std::stoi(std::string(optarg)));
+      std::cout << "Block size \t\t:" << block_size << std::endl;
       break;
     case '?':
     default:
@@ -64,14 +69,18 @@ int main(int argc, char **argv) {
 
   switch (operation) {
   case Operation_download:
-    tftp_client->download_file(filename, work_dir + "/" + filename, [=](tftp::error_code error) {
-      std::cout << "Download status \t: " << error << std::endl;
-    });
+    tftp_client->download_file(
+        filename,
+        work_dir + "/" + filename,
+        [=](tftp::error_code error) { std::cout << "Download status \t: " << error << std::endl; },
+        block_size);
     break;
   case Operation_upload:
-    tftp_client->upload_file(filename, work_dir + "./" + filename, [=](tftp::error_code error) {
-      std::cout << "Upload status \t\t:" << error << std::endl;
-    });
+    tftp_client->upload_file(
+        filename,
+        work_dir + "./" + filename,
+        [=](tftp::error_code error) { std::cout << "Upload status \t\t:" << error << std::endl; },
+        block_size);
     break;
   default:
     break;

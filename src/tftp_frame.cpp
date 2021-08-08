@@ -26,6 +26,10 @@ static std::map<frame::error_code, std::string> error_code_map{
     {frame::no_such_user, "No such user."},
 };
 
+static std::map<frame::option_key, std::string> option_key_map{
+    {frame::option_blksize, "blksize"},
+};
+
 void frame::make_read_request_frame(const std::string &_file_name, const frame::data_mode &mode) {
   this->make_request_frame(frame::op_read_request, _file_name, mode);
 }
@@ -51,7 +55,7 @@ void frame::make_request_frame(const op_code &rq_code,
   this->mode = mode;
   for (const auto &[key, value] : this->options) {
     this->append_to_frame(0x00);
-    this->append_to_frame(key);
+    this->append_to_frame(option_key_map.at(key));
     this->append_to_frame(0x00);
     this->append_to_frame(value);
   }
@@ -194,6 +198,14 @@ std::string frame::get_filename() const {
     return this->file_name;
   }
   throw invalid_frame_parameter_exception("file name can't be provided. Not a read/write request frame");
+}
+
+bool frame::get_option(const option_key &key, std::string &value) const noexcept {
+  if (this->options.find(key) == this->options.end()) {
+    return false;
+  }
+  value = this->options.at(key);
+  return true;
 }
 
 // PRIVATE data members

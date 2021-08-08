@@ -43,6 +43,10 @@ public:
     no_such_user
   };
 
+  enum option_key {
+    option_blksize = 0,
+  };
+
   static const std::size_t max_data_len = TFTP_FRAME_MAX_DATA_LEN;
 
   template <typename T>
@@ -94,27 +98,17 @@ public:
 
   void resize(std::size_t new_size) { this->data.resize(new_size); }
 
-  void set_option(const std::string &key, const std::string &value) { options[key] = value; }
-
-  bool get_option(const std::string &key, std::string &value) const noexcept {
-    if (options.find(key) == options.end()) {
-      return false;
-    }
-    value = options.at(key);
-    return true;
+  void set_option(const option_key &key, const uint16_t value) noexcept {
+    this->set_option(key, std::to_string(value));
   }
 
-  void clear_option(const std::string &key = "") {
-    if (key.empty()) {
-      this->options.clear();
-    } else {
-      auto key_itr = this->options.find(key);
-      if (key_itr == this->options.end()) {
-        return;
-      }
-      this->options.erase(key_itr);
-    }
-  }
+  void set_option(const option_key &key, const std::string &value) noexcept { options[key] = value; }
+
+  bool get_option(const option_key &key, std::string &value) const noexcept;
+
+  void clear_option(const option_key &key) { this->options.erase(key); }
+
+  void clear_option() noexcept { this->options.clear(); }
 
   frame() : code(op_invalid) { this->data.resize(MAX_BASE_FRAME_LEN); }
 
@@ -141,7 +135,7 @@ private:
     }
   }
 
-  typedef std::unordered_map<std::string, std::string> options_map;
+  typedef std::unordered_map<option_key, std::string> options_map;
   std::vector<char> data;
   op_code code;
   data_mode mode;

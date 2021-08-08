@@ -74,6 +74,9 @@ void download_client::start() {
 
 void download_client::send_request() {
   XDEBUG("Sending request to download file %s", this->remote_file_name.c_str());
+  if (this->block_size > TFTP_FRAME_MAX_DATA_LEN) {
+    this->network_frame.set_option(frame::option_blksize, this->block_size);
+  }
   this->network_frame.make_read_request_frame(this->remote_file_name);
   this->sender.async_send(
       this->network_frame.get_asio_buffer(),
@@ -208,6 +211,9 @@ void upload_client::start() {
 
 void upload_client::send_request() {
   XDEBUG("Sending request upload for file %s", this->remote_file_name.c_str());
+  if (this->block_size > TFTP_FRAME_MAX_DATA_LEN) {
+    this->network_frame.set_option(frame::option_blksize, this->block_size);
+  }
   this->network_frame.make_write_request_frame(this->remote_file_name);
   this->sender.async_send(
       this->network_frame.get_asio_buffer(),
