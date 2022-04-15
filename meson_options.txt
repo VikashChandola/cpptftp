@@ -1,4 +1,0 @@
-option('CONSTANT_DELAY_DURATION', type: 'integer', value: 0, description :'Delay before sending a packet')
-option('EXTENSIVE_DEBUG_LOG', type: 'feature', value : 'disabled', description :'Enables extensive debug logging')
-option('NETWORK_TIMEOUT', type: 'integer', value: 1000, description: 'Network timeout(in milliseconds)')
-option('MAX_RETRY_COUNT', type: 'integer', value: 3, min: 1, description: 'Maximum network IO retry count')
