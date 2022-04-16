@@ -3,8 +3,16 @@
 
 #include <algorithm>
 #include <vector>
+#include <string>
 
 namespace tftp{
+namespace packet_const {
+constexpr int opcode_len = 0x02;
+
+//0x00 in between parameters in packet
+constexpr int delimiter_len = 0x01;
+constexpr uint8_t delimiter = 0x00;
+}
 
 namespace mode {
     constexpr std::string_view octet = "OCTET";
@@ -22,14 +30,14 @@ std::vector<uint8_t> CreateBuffer(const rq_packet &packet){
     std::vector<uint8_t> buf;
     buf.push_back(static_cast<uint8_t>((packet.opcode >> 8 ) & 0xFF));
     buf.push_back(static_cast<uint8_t>(packet.opcode & 0xFF));
-    buf.push_back(0x00);
     std::for_each(packet.filename.cbegin(), packet.filename.cend(),[&](auto ch){
                 buf.push_back(static_cast<uint8_t>(ch));
             });
+    buf.push_back(packet_const::delimiter);
     std::for_each(mode::octet.cbegin(), mode::octet.cend(),[&](auto ch){
                 buf.push_back(static_cast<uint8_t>(ch));
             });
-    buf.push_back(0x00);
+    buf.push_back(packet_const::delimiter);
     return buf;
 }
 
