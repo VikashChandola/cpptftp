@@ -7,11 +7,19 @@
 
 namespace tftp{
 namespace packet_const {
-constexpr int opcode_len = 0x02;
 
-//0x00 in between parameters in packet
-constexpr int delimiter_len = 0x01;
-constexpr uint8_t delimiter = 0x00;
+constexpr int       delimiter_len   = 0x01;
+constexpr uint8_t   delimiter       = 0x00;
+
+constexpr int       block_number_len= 0x02;
+
+constexpr int       opcode_len      = 0x02;
+constexpr uint16_t  rrq_opcode      = 0x01;
+constexpr uint16_t  wrq_opcode      = 0x02;
+constexpr uint16_t  data_opcode     = 0x03;
+constexpr uint16_t  ack_opcode      = 0x04;
+constexpr uint16_t  err_opcode      = 0x05;
+
 }
 
 namespace mode {
