@@ -2,7 +2,8 @@
 #define __FRAME_HPP__
 
 #include <algorithm>
-#include <boost/asio/buffer.hpp>
+#include <vector>
+
 namespace tftp{
 
 namespace mode {
