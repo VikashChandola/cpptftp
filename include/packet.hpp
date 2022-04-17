@@ -6,6 +6,41 @@
 #include <string>
 #include <algorithm>
 #include <iterator>
+/* packet provides ability to manipulate data packets for tftp transactions
+ *
+ *      +-----------+       +---------------+       +-----------+
+ *      | data_1    |       |               |       | header    |
+ *      | data_2    |------>| Conversion    |------>|-----------+
+ *      | ...       |<------| engine        |<------| body      |
+ *      |           |       |               |       |..         |
+ *      +-----------+       +---------------+       +-----------+
+ *      Structured                                  Raw packet for
+ *      Data                                        Network
+ * []_packet structures denote a network packet. A network packet can be seen as in two form
+ * structured form where we can get individual entries of the packet or network form where data
+ * is suitable for transaction but not easy to use from application usage point of view.
+ * []_packet structues allow creation(construction) of packet either via structured information
+ * or directly from raw packet. This provides an implicit coversion engine between two
+ * representation of a packet.
+ * Class heirarchy
+ * base_packet
+ *      |
+ *      |____________________________________________
+ *      |           |               |               |
+ *  rq_packet   data_packet     ack_packet      err_packet
+ *      |___________
+ *      |           |
+ *  rrq_packet  wrq_packet
+ *
+ *  Each tail child object represent one kind of packet as per RFC1350
+ *  All packet expose following APIs
+ *  1.  Constructor to create packet object from minimal required data. For example to create a
+ *      ack_packet user need to provide block_number.
+ *  2.  Constructor to create packet object from raw network buffer.
+ *  3.  method to create raw network buffer for packet for packet object.
+ *  Here '1' and '3' gives ability to go from left to right and '2' allows conversion from right
+ *  to left.
+ */
 
 namespace tftp{
 namespace packet{
@@ -70,6 +105,8 @@ uint16_t get_u16(const std::vector<uint8_t>::const_iterator &it){
     return ((static_cast<uint16_t>(*it) << 0x08) | static_cast<uint16_t>(*(it+1)));
 }
 
+/* gives error code as for given err_packet packet
+ */
 error_code get_error_code(const std::vector<uint8_t> &buf){
     assert(buf.size() > opcode_len + error_code_len);
     uint16_t ec_u16 = get_u16(buf.cbegin() + opcode_len);
@@ -77,6 +114,8 @@ error_code get_error_code(const std::vector<uint8_t> &buf){
     return static_cast<error_code>(ec_u16);
 }
 
+/* gives opcode as for given packet
+ */
 opcode get_opcode(const std::vector<uint8_t> &buf){
     assert(buf.size() > opcode_len);
     uint16_t oc_u16 = get_u16(buf.cbegin());
@@ -84,6 +123,8 @@ opcode get_opcode(const std::vector<uint8_t> &buf){
     return static_cast<opcode>(oc_u16);
 }
 
+/* gives error message for given err_packet packet
+ */
 std::string get_err_message(const std::vector<uint8_t> &buf){
     assert(get_opcode(buf) == opcode::err);
     assert(buf.size() >= opcode_len + block_number_len + delimiter_len);
@@ -92,6 +133,8 @@ std::string get_err_message(const std::vector<uint8_t> &buf){
     return std::string(buf.cbegin() + opcode_len + block_number_len, delim_itr);
 }
 
+/* Returns true if buffer given in first argument is of type opcode that second argument
+ */
 bool is_same(const std::vector<uint8_t> &buf, const opcode &oc){
     opcode buffer_oc = get_opcode(buf);
     return (buffer_oc == oc);
