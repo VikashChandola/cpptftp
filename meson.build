@@ -1,5 +1,5 @@
 project('cpptftp', 'cpp',
-        default_options:['cpp_std=c++17',
+        default_options:['cpp_std=c++20',
                          'b_lundef=false',
                          'warning_level=3'])
 cpp = meson.get_compiler('cpp')
