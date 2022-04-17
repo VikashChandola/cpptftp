@@ -126,7 +126,7 @@ BOOST_DATA_TEST_CASE(test_err_packet_buffer_creation,
                      error_code_sample){
     tftp::packet::error_code ec = static_cast<tftp::packet::error_code>(error_code_sample);
     tftp::packet::err_packet packet = {ec};
-    const std::string err_msg(tftp::packet::ec_desc[error_code_sample].data());
+    const std::string_view &err_msg = tftp::packet::ec_desc[error_code_sample];
     auto buffer = packet.buffer();
     BOOST_TEST(buffer.size() == tftp::packet::opcode_len +
                                 tftp::packet::error_code_len +
@@ -152,3 +152,4 @@ BOOST_DATA_TEST_CASE(test_err_packet_buffer_creation,
 
     BOOST_TEST((buffer_itr == buffer.cend()), "Invalid err packet buffer end");
 }
+
