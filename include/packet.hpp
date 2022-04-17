@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <vector>
 #include <string>
+#include <algorithm>
+#include <iterator>
 
 namespace tftp{
 namespace packet{
@@ -20,7 +22,8 @@ enum class opcode : uint16_t {
     err     = 0x05,
 };
 
-constexpr int opcode_len      = 0x02;
+constexpr std::size_t opcode_len      = 0x02;
+constexpr std::size_t opcode_count    = 0x05;
 
 enum class error_code: uint16_t {
     not_defined = 0x00,
@@ -63,6 +66,29 @@ std::pair<uint8_t, uint8_t> u8_pair(const T &t){
                           static_cast<uint8_t>(u16_val & 0xFF));
 }
 
+uint16_t get_u16(const std::vector<uint8_t>::const_iterator &it){
+    return ((static_cast<uint16_t>(*it) << 0x08) | static_cast<uint16_t>(*(it+1)));
+}
+
+error_code get_error_code(const std::vector<uint8_t> &buffer){
+    assert(buffer.size() > opcode_len + error_code_len);
+    uint16_t ec_u16 = get_u16(buffer.cbegin() + opcode_len);
+    assert(ec_u16 < error_code_count);
+    return static_cast<error_code>(ec_u16);
+}
+
+opcode get_opcode(const std::vector<uint8_t> &buffer){
+    assert(buffer.size() > opcode_len);
+    uint16_t oc_u16 = get_u16(buffer.cbegin());
+    assert((oc_u16 > 0) && (oc_u16 < (opcode_count + 1)));
+    return static_cast<opcode>(oc_u16);
+}
+
+bool is_same(const std::vector<uint8_t> &buffer, const opcode &oc){
+    opcode buffer_oc = get_opcode(buffer);
+    return (buffer_oc == oc);
+}
+
 struct base_packet {
     virtual ~base_packet() = default;
     virtual std::vector<uint8_t> buffer() const noexcept = 0;
@@ -71,6 +97,18 @@ struct base_packet {
 struct rq_packet : public base_packet{
     std::string filename;
     rq_packet(const std::string &filename) : filename(filename){}
+    rq_packet(const std::vector<uint8_t> &buf) {
+        assert(get_opcode(buf) == opcode::rrq);
+        auto filename_delim_itr = std::ranges::find(buf.cbegin() + opcode_len, buf.cend(),
+                                                    delimiter);
+        assert(filename_delim_itr != buf.cend());
+        filename = std::string(buf.cbegin() + opcode_len, filename_delim_itr);
+        auto mode_delim_itr = std::ranges::find(filename_delim_itr + 1, buf.cend(), delimiter);
+        assert(mode_delim_itr != buf.cend());
+        assert(std::string(filename_delim_itr + 1, mode_delim_itr) == mode::octet);
+        assert((mode_delim_itr + 1) == buf.cend());
+    }
+
     std::vector<uint8_t> rq_buffer(const opcode &oc) const noexcept {
         std::vector<uint8_t> buf;
         auto oc_pair = u8_pair(oc);
