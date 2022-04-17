@@ -121,3 +121,34 @@ BOOST_DATA_TEST_CASE(test_ack_packet_buffer_creation,
     BOOST_TEST((buffer_itr == buffer.cend()), "Invalid ack packet buffer end");
 }
 
+BOOST_DATA_TEST_CASE(test_err_packet_buffer_creation,
+                     bdata::xrange(tftp::packet::error_code_count),
+                     error_code_sample){
+    tftp::packet::error_code ec = static_cast<tftp::packet::error_code>(error_code_sample);
+    tftp::packet::err_packet packet = {ec};
+    const std::string err_msg(tftp::packet::ec_desc[error_code_sample].data());
+    auto buffer = packet.buffer();
+    BOOST_TEST(buffer.size() == tftp::packet::opcode_len +
+                                tftp::packet::error_code_len +
+                                err_msg.size() +
+                                tftp::packet::delimiter_len);
+
+    auto buffer_itr = buffer.cbegin();
+    uint16_t extracted_opcode = (static_cast<uint16_t>(*buffer_itr) << 0x08) |
+                                static_cast<uint16_t>(*(buffer_itr + 1));
+    BOOST_TEST(extracted_opcode == static_cast<uint16_t>(tftp::packet::opcode::err));
+    buffer_itr += tftp::packet::opcode_len;
+
+    uint16_t extracted_ec = (static_cast<uint16_t>(*buffer_itr) << 0x08) |
+                            static_cast<uint16_t>(*(buffer_itr + 1));
+    BOOST_TEST((ec == static_cast<tftp::packet::error_code>(extracted_ec)), "error code mismatch");
+    buffer_itr += tftp::packet::error_code_len;
+
+    std::string extracted_err_msg = std::string(buffer_itr, buffer_itr + err_msg.size());
+    buffer_itr += err_msg.size();
+
+    BOOST_TEST(*buffer_itr == tftp::packet::delimiter);
+    buffer_itr += tftp::packet::delimiter_len;
+
+    BOOST_TEST((buffer_itr == buffer.cend()), "Invalid err packet buffer end");
+}

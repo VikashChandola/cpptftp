@@ -33,9 +33,10 @@ enum class error_code: uint16_t {
     no_such_user,
 };
 
-constexpr std::size_t error_code_len = 8;
+constexpr std::size_t error_code_len = 2;
+constexpr std::size_t error_code_count = 8;
 
-constexpr std::array<std::string_view, error_code_len> ec_desc = {
+constexpr std::array<std::string_view, error_code_count> ec_desc = {
         "not_defined",
         "file_not_found",
         "access_violation",
@@ -126,7 +127,8 @@ struct ack_packet final : public base_packet {
 
 struct err_packet final : public base_packet{
     error_code ec;
-    std::vector<uint8_t> buffer() {
+    err_packet(const error_code &ec): ec(ec){}
+    std::vector<uint8_t> buffer() const noexcept override{
         std::vector<uint8_t> buf;
         const uint16_t oc_u16 = static_cast<uint16_t>(opcode::err);
         const uint16_t ec_u16 = static_cast<uint16_t>(ec);
