@@ -51,6 +51,18 @@ namespace mode {
     constexpr std::string_view octet = "octet";
 };
 
+template <typename T>
+std::pair<uint8_t, uint8_t> u8_pair(const T &t){
+    static_assert(std::is_same<uint16_t, T>::value ||
+                  std::is_same<opcode, T>::value ||
+                  std::is_same<error_code, T>::value,
+                  "Can't data into uint8_t pair");
+
+    const uint16_t u16_val = static_cast<uint16_t>(t);
+    return std::make_pair(static_cast<uint8_t>(u16_val >> 0x08) &0xFF,
+                          static_cast<uint8_t>(u16_val & 0xFF));
+}
+
 struct base_packet {
     virtual ~base_packet() = default;
     virtual std::vector<uint8_t> buffer() const noexcept = 0;
@@ -61,9 +73,9 @@ struct rq_packet : public base_packet{
     rq_packet(const std::string &filename) : filename(filename){}
     std::vector<uint8_t> rq_buffer(const opcode &oc) const noexcept {
         std::vector<uint8_t> buf;
-        const uint16_t oc_u16 = static_cast<uint16_t>(oc);
-        buf.push_back(static_cast<uint8_t>((oc_u16 >> 8 ) & 0xFF));
-        buf.push_back(static_cast<uint8_t>(oc_u16 & 0xFF));
+        auto oc_pair = u8_pair(oc);
+        buf.push_back(oc_pair.first);
+        buf.push_back(oc_pair.second);
         std::for_each(filename.cbegin(), filename.cend(),[&](const uint8_t& ch){
                     buf.push_back(ch);
                 });
@@ -98,11 +110,12 @@ struct data_packet final: public base_packet{
 
     std::vector<uint8_t> buffer() const noexcept override {
         std::vector<uint8_t> buf;
-        const uint16_t oc_u16 = static_cast<uint16_t>(opcode::data);
-        buf.push_back(static_cast<uint8_t>((oc_u16 >> 8 ) && 0xFF));
-        buf.push_back(static_cast<uint8_t>(oc_u16 & 0xFF));
-        buf.push_back(static_cast<uint8_t>((block_number >> 8 ) & 0xFF));
-        buf.push_back(static_cast<uint8_t>(block_number & 0xFF));
+        auto oc_pair = u8_pair(opcode::data);
+        buf.push_back(oc_pair.first);
+        buf.push_back(oc_pair.second);
+        auto block_number_pair = u8_pair(block_number);
+        buf.push_back(block_number_pair.first);
+        buf.push_back(block_number_pair.second);
         std::for_each(data.cbegin(), data.cend(),[&](const uint8_t &ch){
                     buf.push_back(ch);
                 });
@@ -116,11 +129,12 @@ struct ack_packet final : public base_packet {
     ack_packet(const uint16_t &block_number): block_number(block_number){}
     std::vector<uint8_t> buffer() const noexcept override {
         std::vector<uint8_t> buf;
-        const uint16_t oc_u16 = static_cast<uint16_t>(opcode::ack);
-        buf.push_back(static_cast<uint8_t>((oc_u16 >> 8 ) & 0xFF));
-        buf.push_back(static_cast<uint8_t>(oc_u16 & 0xFF));
-        buf.push_back(static_cast<uint8_t>((block_number >> 8 ) & 0xFF));
-        buf.push_back(static_cast<uint8_t>(block_number & 0xFF));
+        auto oc_pair = u8_pair(opcode::ack);
+        buf.push_back(oc_pair.first);
+        buf.push_back(oc_pair.second);
+        auto block_number_pair = u8_pair(block_number);
+        buf.push_back(block_number_pair.first);
+        buf.push_back(block_number_pair.second);
         return buf;
     }
 };
@@ -130,13 +144,13 @@ struct err_packet final : public base_packet{
     err_packet(const error_code &ec): ec(ec){}
     std::vector<uint8_t> buffer() const noexcept override{
         std::vector<uint8_t> buf;
-        const uint16_t oc_u16 = static_cast<uint16_t>(opcode::err);
-        const uint16_t ec_u16 = static_cast<uint16_t>(ec);
-        buf.push_back(static_cast<uint8_t>((oc_u16 >> 8 ) & 0xFF));
-        buf.push_back(static_cast<uint8_t>(oc_u16 & 0xFF));
-        buf.push_back(static_cast<uint8_t>((ec_u16 >> 8 ) & 0xFF));
-        buf.push_back(static_cast<uint8_t>(ec_u16 & 0xFF));
-        auto &err_msg = ec_desc[ec_u16];
+        auto oc_pair = u8_pair(opcode::err);
+        auto ec_pair = u8_pair(ec);
+        buf.push_back(oc_pair.first);
+        buf.push_back(oc_pair.second);
+        buf.push_back(ec_pair.first);
+        buf.push_back(ec_pair.second);
+        auto &err_msg = ec_desc[static_cast<uint16_t>(ec)];
         std::for_each(err_msg.cbegin(), err_msg.cend(),[&](const uint8_t &ch){
                     buf.push_back(ch);
                 });
