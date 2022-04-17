@@ -46,7 +46,7 @@ constexpr std::array<std::string_view, error_code_count> ec_desc = {
         "disk_allocation_error",
         "illegal_operation",
         "unknown_transfer_id",
-        "file_already_exist"
+        "file_already_exist",
         "no_such_user"
 };
 
@@ -160,8 +160,8 @@ struct data_packet final: public base_packet{
         block_number(block_number), data(data){}
 
     data_packet(const std::vector<uint8_t> &buf) {
-        assert(get_opcode(buf) == opcode::rrq);
-        assert(buf.size() > opcode_len + block_number_len);
+        assert(get_opcode(buf) == opcode::data);
+        assert(buf.size() >= opcode_len + block_number_len);
         block_number = get_u16(buf.cbegin() + opcode_len);
         std::for_each(buf.cbegin() + opcode_len+ block_number_len,
                       buf.cend(),

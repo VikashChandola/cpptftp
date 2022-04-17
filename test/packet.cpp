@@ -49,6 +49,8 @@ BOOST_DATA_TEST_CASE(test_request_packet_buffer_creation,
     buffer_itr += tftp::packet::delimiter_len;
 
     BOOST_TEST((buffer_itr == buffer.cend()));
+    BOOST_TEST((packet.filename == tftp::packet::rrq_packet(buffer).filename),
+               "Failed to recreate read request packet from buffer");
 }
 
 BOOST_DATA_TEST_CASE(test_data_packet_buffer_creation,
@@ -91,6 +93,11 @@ BOOST_DATA_TEST_CASE(test_data_packet_buffer_creation,
 
     buffer_itr += data.size();
     BOOST_TEST((buffer_itr == buffer.cend()), "Invalid data packet buffer end");
+
+    tftp::packet::data_packet recreated_packet(buffer);
+    BOOST_TEST(((packet.block_number == recreated_packet.block_number) &&
+               (packet.data == recreated_packet.data)),
+               "Failed to recreate data packet from buffer");
 }
 
 BOOST_DATA_TEST_CASE(test_ack_packet_buffer_creation,
@@ -119,6 +126,10 @@ BOOST_DATA_TEST_CASE(test_ack_packet_buffer_creation,
     buffer_itr += tftp::packet::block_number_len;
 
     BOOST_TEST((buffer_itr == buffer.cend()), "Invalid ack packet buffer end");
+
+    tftp::packet::ack_packet recreated_packet(buffer);
+    BOOST_TEST((packet.block_number == recreated_packet.block_number),
+               "Failed to recreate ack packet from buffer");
 }
 
 BOOST_DATA_TEST_CASE(test_err_packet_buffer_creation,
@@ -151,5 +162,9 @@ BOOST_DATA_TEST_CASE(test_err_packet_buffer_creation,
     buffer_itr += tftp::packet::delimiter_len;
 
     BOOST_TEST((buffer_itr == buffer.cend()), "Invalid err packet buffer end");
+
+    tftp::packet::err_packet recreated_packet(buffer);
+    BOOST_TEST((packet.ec == recreated_packet.ec),
+               "Failed to recreate ack packet from buffer");
 }
 
