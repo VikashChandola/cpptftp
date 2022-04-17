@@ -70,22 +70,30 @@ uint16_t get_u16(const std::vector<uint8_t>::const_iterator &it){
     return ((static_cast<uint16_t>(*it) << 0x08) | static_cast<uint16_t>(*(it+1)));
 }
 
-error_code get_error_code(const std::vector<uint8_t> &buffer){
-    assert(buffer.size() > opcode_len + error_code_len);
-    uint16_t ec_u16 = get_u16(buffer.cbegin() + opcode_len);
+error_code get_error_code(const std::vector<uint8_t> &buf){
+    assert(buf.size() > opcode_len + error_code_len);
+    uint16_t ec_u16 = get_u16(buf.cbegin() + opcode_len);
     assert(ec_u16 < error_code_count);
     return static_cast<error_code>(ec_u16);
 }
 
-opcode get_opcode(const std::vector<uint8_t> &buffer){
-    assert(buffer.size() > opcode_len);
-    uint16_t oc_u16 = get_u16(buffer.cbegin());
+opcode get_opcode(const std::vector<uint8_t> &buf){
+    assert(buf.size() > opcode_len);
+    uint16_t oc_u16 = get_u16(buf.cbegin());
     assert((oc_u16 > 0) && (oc_u16 < (opcode_count + 1)));
     return static_cast<opcode>(oc_u16);
 }
 
-bool is_same(const std::vector<uint8_t> &buffer, const opcode &oc){
-    opcode buffer_oc = get_opcode(buffer);
+std::string get_err_message(const std::vector<uint8_t> &buf){
+    assert(get_opcode(buf) == opcode::err);
+    assert(buf.size() >= opcode_len + block_number_len + delimiter_len);
+    auto delim_itr = std::ranges::find(buf.cbegin() + opcode_len + block_number_len,
+                                       buf.cend(), delimiter);
+    return std::string(buf.cbegin() + opcode_len + block_number_len, delim_itr);
+}
+
+bool is_same(const std::vector<uint8_t> &buf, const opcode &oc){
+    opcode buffer_oc = get_opcode(buf);
     return (buffer_oc == oc);
 }
 
@@ -96,7 +104,9 @@ struct base_packet {
 
 struct rq_packet : public base_packet{
     std::string filename;
+
     rq_packet(const std::string &filename) : filename(filename){}
+
     rq_packet(const std::vector<uint8_t> &buf) {
         assert(get_opcode(buf) == opcode::rrq);
         auto filename_delim_itr = std::ranges::find(buf.cbegin() + opcode_len, buf.cend(),
@@ -128,12 +138,15 @@ struct rq_packet : public base_packet{
 
 struct rrq_packet final : public rq_packet {
     rrq_packet(const std::string &filename) : rq_packet(filename){}
+    rrq_packet(const std::vector<uint8_t> &buf): rq_packet(buf){}
     std::vector<uint8_t> buffer() const noexcept override{
         return rq_buffer(opcode::rrq);
     }
 };
 
 struct wrq_packet final : public rq_packet {
+    wrq_packet(const std::string &filename) : rq_packet(filename){}
+    wrq_packet(const std::vector<uint8_t> &buf): rq_packet(buf){}
     std::vector<uint8_t> buffer() const noexcept override{
         return rq_buffer(opcode::wrq);
     }
@@ -146,6 +159,16 @@ struct data_packet final: public base_packet{
     data_packet(const uint16_t &block_number, const std::vector<uint8_t> data):
         block_number(block_number), data(data){}
 
+    data_packet(const std::vector<uint8_t> &buf) {
+        assert(get_opcode(buf) == opcode::rrq);
+        assert(buf.size() > opcode_len + block_number_len);
+        block_number = get_u16(buf.cbegin() + opcode_len);
+        std::for_each(buf.cbegin() + opcode_len+ block_number_len,
+                      buf.cend(),
+                      [&](const uint8_t &ch){
+                            data.push_back(ch);
+                      });
+    }
     std::vector<uint8_t> buffer() const noexcept override {
         std::vector<uint8_t> buf;
         auto oc_pair = u8_pair(opcode::data);
@@ -165,6 +188,13 @@ struct ack_packet final : public base_packet {
     uint16_t block_number;
 
     ack_packet(const uint16_t &block_number): block_number(block_number){}
+
+    ack_packet(const std::vector<uint8_t> &buf) {
+        assert(get_opcode(buf) == opcode::ack);
+        assert(buf.size() == opcode_len + block_number_len);
+        block_number = get_u16(buf.cbegin() + opcode_len);
+    }
+
     std::vector<uint8_t> buffer() const noexcept override {
         std::vector<uint8_t> buf;
         auto oc_pair = u8_pair(opcode::ack);
@@ -180,6 +210,17 @@ struct ack_packet final : public base_packet {
 struct err_packet final : public base_packet{
     error_code ec;
     err_packet(const error_code &ec): ec(ec){}
+
+    err_packet(const std::vector<uint8_t> &buf) {
+        assert(get_opcode(buf) == opcode::err);
+        assert(buf.size() > opcode_len + block_number_len + delimiter_len);
+        ec = get_error_code(buf);
+        auto delim_itr = std::ranges::find(buf.cbegin() + opcode_len + block_number_len,
+                                           buf.cend(), delimiter);
+        assert(delim_itr < buf.cend());
+        assert(delim_itr + 1 == buf.cend());
+    }
+
     std::vector<uint8_t> buffer() const noexcept override{
         std::vector<uint8_t> buf;
         auto oc_pair = u8_pair(opcode::err);
