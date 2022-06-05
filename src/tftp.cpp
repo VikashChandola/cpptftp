@@ -50,7 +50,13 @@ Status receiveData(boost::asio::yield_context &yield,
                    std::size_t &bytesReceived
                    )
 {
-    return Status::unknownError;
+    boost::system::error_code ec;
+    std::size_t recvSize  = socket.async_receive(buffer, yield[ec]);
+    if(ec){
+        return Status::networkFailure;
+    }
+    bytesReceived = recvSize;
+    return Status::success;
 }
 
 Status sendAck(boost::asio::yield_context &yield,
