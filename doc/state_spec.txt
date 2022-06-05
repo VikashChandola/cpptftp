@@ -1,0 +1,66 @@
+State1 -> State2 -> State3
+There can be informations that State1 have State2 doesn't care at all but State3 needs. Such
+information should be passed down without State2 bringing any dependency on it. Each state requires
+caller State to pass one state_info structure which will have this information. Each state sees this
+structure in the way information it needs by taking a reference to it from it's abstract base info.
+Object passed around across states will inherit all the states in the system. This way everybody
+sees what they need and only what they need.
+
+send_read_request   :
+    Input :
+        0. info(get_remote_endpoint, get_filename, get_mode)
+        1. completion_cb
+        2. success_cb(optional, defaults to receive data)
+    Description:
+        Sends RRQ packet, If send if successful transfer control to success_cb otherwise call
+        completion_cb with error.
+
+send_write_request  :
+    Input :
+        0. info(get_remote_endpoint, get_filename, get_mode)
+        1. remote_endpoint
+        2. completion_cb
+        3. success_cb(optional, defaults to receive ack)
+    Description:
+        Sends WRQ packet, If send if successful transfer control to success_cb otherwise call
+        completion_cb with error.
+        NOTE: This is very much replica of send_read_request. Try using same state class
+
+send_data           :
+    Input :
+        0. info(get_remote_endpoint, get_file_in, get_block_number)
+        1. failure_cb
+        2. success_cb
+    Description:
+        Sends data packet to given endpoint. On success call success_cb on failure call
+        failure_cb with error.
+
+receive_data        :
+    Input :
+        0. receive_data_info(get_local_endpoint, get_file_out, get_block_number)
+        1. failure_cb
+        2. success_cb
+    Description:
+
+send_ack            :
+    Input :
+        0. info(get_remote_endpoint, get_block_number)
+        1. failure_cb
+        2. success_cb
+    Description:
+        Sends data packet to given endpoint. On success call success_cb on failure call
+        failure_cb with error.
+
+receive_ack         :
+    Input :
+        0. info(get_remote_endpoint, get_block_number
+        1. failure_cb
+        2. success_cb
+    Description:
+        waits for ack message. calls success_cb on ack with required block number failure_cb
+        otherwise
+
+
+serve_request       :
+serve_read_request  :
+serve_write_request :
