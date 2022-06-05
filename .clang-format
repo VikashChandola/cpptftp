@@ -1,5 +1,7 @@
 Language:        Cpp
 ColumnLimit: 110
+BasedOnStyle: LLVM
+IndentWidth: 4
 BinPackParameters: false
 AllowAllArgumentsOnNextLine: false
 BinPackArguments: false
