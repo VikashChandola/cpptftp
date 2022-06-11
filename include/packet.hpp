@@ -206,11 +206,8 @@ struct data_packet final: public base_packet{
         assert(get_opcode(buf) == opcode::data);
         assert(buf.size() >= opcode_len + block_number_len);
         block_number = get_u16(buf.cbegin() + opcode_len);
-        std::for_each(buf.cbegin() + opcode_len+ block_number_len,
-                      buf.cend(),
-                      [&](const uint8_t &ch){
-                            data.push_back(ch);
-                      });
+        std::copy(buf.cbegin() + opcode_len + block_number_len, buf.cend(),
+                  std::back_inserter(data));
     }
     std::vector<uint8_t> buffer() const noexcept override {
         std::vector<uint8_t> buf;
